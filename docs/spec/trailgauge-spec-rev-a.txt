@@ -1,0 +1,164 @@
+Technical Specification: Modular Off-Road Telemetry & Sensor Hub (Project: TrailGauge)
+1. System Architecture Overview
+The system utilizes a Hub-and-Spoke Topology. Distributed remote sensor nodes capture telemetry from the vehicle's engine bay, chassis, or exterior and relay data to a centrally located Master Hardware Hub beneath the dashboard. The Master Hub processes, aggregates, and debounces the data before bridging it via Bluetooth Low Energy (BLE) to a dedicated Samsung Galaxy dashboard display engine.
+Topology Map:
+[Remote Sensor Node 1] ───(LoRa / I2C)───┐
+[Remote Sensor Node 2] ───(LoRa / I2C)───┼─► [Master Hardware Hub] ───(BLE)───► [Samsung S24 App UI]
+[Remote Sensor Node N] ───(LoRa / I2C)───┘ (ESP32-S3 | 12V Buck) (React Native Core)
+
+2. Architectural Design & Ecosystem Decisions
+2.1 Component Ecosystem & 12V Power Management
+Microcontroller Core: The ESP32-S3 platform is used for the Master Hub. It features a dual-core 240MHz processor, hardware-level floating-point units (FPU) for filtering math, and an integrated BLE 5.0 radio.
+Power Subsystem: To handle automotive electrical environments (9V–40V spikes), the system avoids linear regulators (like the LM7805) to eliminate excessive heat. It utilizes high-efficiency Monolithic Power Systems (MPS) DC-DC Buck Converters (e.g., MP2315 or TI LM2596 modules) to output a stable 5V/3.3V DC rail.
+Sensor Interfacing:
+Ambient/Barometric: BME280 (I2C native, 3.3V).
+Rugged Temperature: DS18B20 (1-Wire protocol, waterproof stainless steel probe package).
+2.2 Wireless Network & LoRa Topology Trade-offs
+The remote sensor nodes connect to the Master Hub using an RFM95W LoRa transceiver module to cut through dense metallic barriers like firewalls and skid plates.
+Data Rate Constraints: Because LoRa is optimized for low-bandwidth telemetry, it is reserved strictly for slow-changing metrics (temperatures, voltage). High-refresh telemetry (pitch, roll, heading) relies on the Master Hub’s local I2C lines or the phone’s internal sensors to eliminate visual lag.
+Collision Avoidance: To prevent packet collision from multiple nodes, the Master Hub implements a structured Time-Division Multiple Access (TDMA) polling cycle.
+
+3. Firmware Specification & Vibration Debouncing
+To eliminate high-frequency chassis vibrations and vehicle jolt spikes from the UI readouts, the Master Hub implements a tunable Low-Pass Exponential Moving Average (EMA) filter.
+3.1 Mathematical Smoothing Formula:
+FilteredValue_t = (α × RawValue_t) + ((1 - α) × FilteredValue_t-1)
+(Where α (alpha) is a tunable coefficient between 0.0 and 1.0. Lower values increase smoothing but introduce response latency).
+3.2 Firmware Implementation (C++ / FreeRTOS Task):
+cpp
+#include <Arduino.h>
+
+struct SensorData {
+    float rawTemperature;
+    float filteredTemperature;
+    float alphaModifier; // Tunable smoothing coefficient
+};
+
+SensorData engineTempSensor = {0.0, 0.0, 0.12}; 
+
+void processingLoopTask(void *pvParameters) {
+    for(;;) {
+        // Read raw physical hardware pin or register array
+        engineTempSensor.rawTemperature = analogRead(A0) * (5.0 / 1023.0) * 100.0; 
+
+        // Apply Exponential Moving Average filter math
+        engineTempSensor.filteredTemperature = (engineTempSensor.alphaModifier * engineTempSensor.rawTemperature) + 
+                                               ((1.0f - engineTempSensor.alphaModifier) * engineTempSensor.filteredTemperature);
+
+        // Yield execution to RTOS scheduler for 20ms (50Hz sample rate)
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+Use code with caution.
+
+4. Full-Stack App Architecture & UI Navigation Spec
+The mobile engine is built using React Native with TypeScript, using hardware-accelerated Skia layouts to preserve a sustained 60 FPS render cycle.
+4.1 UI State Machine Layout Flow
+The UI implements two viewing states: GROUP_VIEW (displays 3 default telemetry gauges simultaneously) and SINGLE_VIEW (displays 1 selected gauge maximized to full-screen scale).
+┌──────────────────────────────────────┐
+ │             GROUP_VIEW               │
+ │ ┌──────────┐┌──────────┐┌──────────┐ │
+ │ │ Gauge A  ││ Gauge B  ││ Gauge C  │ │
+ │ └──────────┘└──────────┘└──────────┘ │
+ └──────────────────┬───────────────────┘
+                    │ Double-Tap (Gauge ID)
+                    ▼
+ ┌──────────────────────────────────────┐
+ │             SINGLE_VIEW              │
+ │          ┌────────────────┐          │
+ │  Swipe   │    Gauge B     │  Swipe   │
+ │ ◄─────── │   (Maximized)  │ ───────► │
+ │          └────────────────┘          │
+ └──────────────────┬───────────────────┘
+                    │ Double-Tap
+                    ▼ (Return to Group)
+
+4.2 Navigation Architecture Component Layout (TypeScript):
+typescript
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react';
+
+type ViewMode = 'GROUP_VIEW' | 'SINGLE_VIEW';
+const GAUGE_REGISTRY = ['ALTIMETER', 'INCLINOMETER', 'COMPASS', 'ENGINE_TEMP'] as const;
+
+export const DashboardCanvas: React.FC = () => {
+  const [viewMode, setViewMode] = useState<ViewMode>('GROUP_VIEW');
+  const [activeGaugeIndex, setActiveGaugeIndex] = useState<number>(0);
+
+  const handleGaugeDoubleTap = (index: number) => {
+    if (viewMode === 'GROUP_VIEW') {
+      setActiveGaugeIndex(index);
+      setViewMode('SINGLE_VIEW');
+    } else {
+      setViewMode('GROUP_VIEW');
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {viewMode === 'GROUP_VIEW' ? (
+        <View style={styles.groupLayout}>
+          {GAUGE_REGISTRY.slice(0, 3).map((gauge, idx) => (
+            <View key={gauge} onTouchEnd={() => handleGaugeDoubleTap(idx)} style={styles.gaugeThumbnail} />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.singleLayout}>
+          <View onTouchEnd={() => handleGaugeDoubleTap(activeGaugeIndex)} style={styles.maximizedGaugeFrame} />
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#121212' },
+  groupLayout: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', height: '100%' },
+  gaugeThumbnail: { width: '30%', height: '80%', borderWidth: 1, borderColor: '#333' },
+  singleLayout: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  maximizedGaugeFrame: { width: '90%', height: '90%', borderWidth: 2, borderColor: '#00FF00' },
+});
+
+Use code with caution.
+
+5. Wireless Communication & Packed Packet Schema
+To reduce latency overhead, data is structured into a raw 16-byte packed binary payload transmitted via a single BLE characteristic notify channel at 25 Hz.
+5.1 Binary Telemetry Stream Frame Layout (Total: 16 Bytes)
+Byte Offset
+Data Type
+Field Name
+Description
+0x00 - 0x03
+float32
+altitude_baro
+Current altitude calculation derived from hub sensor (Metric)
+0x04 - 0x05
+int16
+pitch_degrees
+Raw pitch scaled factor (degrees × 100)
+0x06 - 0x07
+int16
+roll_degrees
+Raw roll scaled factor (degrees × 100)
+0x08 - 0x09
+int16
+compass_heading
+True course bearing scaled factor (degrees × 100)
+0x0A - 0x0B
+int16
+engine_temp_c
+Temperature sensor probe array 1 (Celsius × 100)
+0x0C - 0x0D
+int16
+ambient_temp_c
+Temperature sensor probe array 2 (Celsius × 100)
+0x0E
+uint8
+sensor_status
+Bitmask health monitoring states for auxiliary node inputs
+0x0F
+uint8
+checksum
+Standard 8-bit modular XOR parity validation field
+
+

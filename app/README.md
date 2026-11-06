@@ -1,0 +1,67 @@
+# TrailGauge app
+
+Android dashboard for the TrailGauge off-road telemetry hub (spec Rev B). Landscape, dark,
+six gauges: tilt (pitch and roll), compass, altitude, coolant, outside temperature, battery.
+
+## Data sources
+
+Chosen in Settings, independently for two groups:
+
+| Group | Phone | Hub | Demo |
+| --- | --- | --- | --- |
+| Tilt, compass, altitude | Phone's gravity, magnetometer and barometer | BLE TelemetryFrameV2 | Synthetic |
+| Coolant, outside temp, battery | — | BLE TelemetryFrameV2 | Synthetic |
+
+Default: phone sensors for motion, demo for temperatures and battery.
+
+## Using phone sensors
+
+1. Mount the phone rigidly. Avoid magnetic mounts: they ruin the compass.
+2. Park on level ground, open Settings, tap **Zero now**. This also learns which way the phone
+   faces; the back of the phone is taken as forward.
+3. Enter a known elevation (map, trail sign) under **Set current elevation**.
+4. The compass switches from magnetic (M) to true north (T) once GPS has a fix.
+
+If tilting the nose up shows nose-down, set **Tilt reads backwards?** to Flipped (Diagnostics).
+
+## Gestures
+
+- Group view: double-tap a gauge to enlarge it.
+- Single view: swipe left or right through all six gauges; double-tap to go back.
+- Single taps do nothing, so bumps on the trail cannot switch views.
+
+Settings lock above 8 km/h (needs location permission).
+
+## Build
+
+Easiest: push to GitHub and download the APK from the **Android APK** workflow run
+(see the repository README). To build locally:
+
+```sh
+./scripts/setup.sh             # install libraries, typecheck, unit tests
+npx expo prebuild --platform android --clean
+cd android && ./gradlew assembleRelease
+# APK: android/app/build/outputs/apk/release/app-release.apk
+```
+
+Requires JDK 17 and the Android SDK. The release build is signed with the debug key, which is
+fine for sideloading but not for the Play Store.
+
+## Hub protocol (for the firmware)
+
+- Service `a20e0001-240c-4924-aaba-7c4e08e605de`
+- Telemetry (notify, 25 Hz) `a20e0002-…`: 20-byte TelemetryFrameV2, little-endian (spec §7)
+- Control (write with response) `a20e0004-…`: opcode byte + optional uint32 LE
+  - `0x01` zero level · `0x02` / `0x03` magnetometer calibration start / stop
+  - `0x04` set QNH, payload in pascals; sent on every connect and when elevation is set
+- The app adds magnetic declination to the hub's magnetic heading.
+
+Golden vector, decoded by `npm test`:
+`02 2A D2 04 0C FE 9F 8C 40 E2 01 00 22 24 BB FE E8 35 20 00`
+
+## Layout
+
+- `src/core` — pure logic (frame parsing, orientation maths, filters, altitude, formatting); unit-tested with `node --test`
+- `src/engine` — data sources, settings, live values (Reanimated shared values) and staleness
+- `src/gauges` — Skia gauges drawn on the UI thread
+- `src/ui` — dashboard and settings screens
