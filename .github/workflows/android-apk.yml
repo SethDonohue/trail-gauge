@@ -1,7 +1,7 @@
 name: Android APK
 
-# Builds the TrailGauge app and attaches the installable APK to the run.
-# Open the run under the Actions tab and download "trailgauge-apk" from its Artifacts section.
+# Builds the TrailGauge app and publishes each build as a GitHub Release with the APK attached.
+# Latest APK, direct link: https://github.com/<owner>/<repo>/releases/latest/download/trailgauge.apk
 on:
   push:
     branches: [main]
@@ -11,6 +11,9 @@ on:
 concurrency:
   group: android-apk-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write # create releases
 
 jobs:
   build:
@@ -50,6 +53,9 @@ jobs:
           npx expo prebuild --platform android --clean --no-install
           # One CPU architecture (all current phones, including the S24) halves build time.
           sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties
+          # A rising versionCode lets each new APK install over the previous one.
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          grep -q "versionCode ${{ github.run_number }}" android/app/build.gradle
 
       - name: Build release APK
         working-directory: app/android
@@ -57,14 +63,25 @@ jobs:
           NODE_ENV: production
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Name the APK
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          version=$(node -p 'require("./package.json").version')
+          build=${{ github.run_number }}
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk \
-            "dist/trailgauge-$(node -p 'require("./package.json").version')-${GITHUB_SHA::7}.apk"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: trailgauge-apk
-          path: app/dist/*.apk
-          retention-days: 30
+          # Fixed asset name, so .../releases/latest/download/trailgauge.apk always works.
+          cp android/app/build/outputs/apk/release/app-release.apk dist/trailgauge.apk
+          {
+            echo "TrailGauge $version, build $build (commit ${GITHUB_SHA::7})."
+            echo
+            git log -1 --format=%B "$GITHUB_SHA" | grep -v -E '^(Co-Authored-By|Claude-Session):'
+            echo
+            echo "Install: download trailgauge.apk on the phone and open it."
+          } > dist/notes.md
+          gh release create "build-$build" dist/trailgauge.apk \
+            --title "TrailGauge $version (build $build)" \
+            --notes-file dist/notes.md \
+            --target "$GITHUB_SHA" \
+            --latest

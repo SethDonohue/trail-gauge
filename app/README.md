@@ -32,10 +32,16 @@ If tilting the nose up shows nose-down, set **Tilt reads backwards?** to Flipped
 
 Settings lock above 8 km/h (needs location permission).
 
+## First run
+
+The app asks for location (speed, declination, GPS elevation) and Bluetooth (hub) permissions.
+With no hub, tilt, compass and altitude come from the phone, and the temperature and battery
+gauges show demo data until a hub is connected and selected in Settings.
+
 ## Build
 
-Easiest: push to GitHub and download the APK from the **Android APK** workflow run
-(see the repository README). To build locally:
+Easiest: push to `main`. GitHub Actions builds the APK and publishes it as a release (see the
+repository README). To build locally:
 
 ```sh
 ./scripts/setup.sh             # install libraries, typecheck, unit tests

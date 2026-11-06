@@ -2,16 +2,16 @@
 
 **Goal:** build an installable Android APK of the TrailGauge dashboard app for a Galaxy S24.
 
-## Status (2026-10-23)
+## Status (2026-11-06)
 
 - App code complete (Expo SDK 58, React Native 0.88, Skia, Reanimated, BLE). See README.md.
 - `tsc` clean; 13/13 unit tests pass; JS bundle builds.
-- APK not built yet. Last blocker was `repo.reactnative.dev` not being allowed; the user has now added it.
+- APK builds in GitHub Actions and is published as a release. Not yet tested on a phone.
 
 ## To finish
 
 Preferred: the GitHub Actions workflow (`.github/workflows/android-apk.yml`) builds the APK on
-every push to `app/` and attaches it to the run as the `trailgauge-apk` artifact.
+every push to `app/` and publishes it as a GitHub Release (`trailgauge.apk`).
 
 Inside a Claude workspace instead: `bash scripts/build-apk.sh` from `app/` (20–40 min on 2 CPUs;
 run it in the background), then send `android/app/build/outputs/apk/release/app-release.apk`.
