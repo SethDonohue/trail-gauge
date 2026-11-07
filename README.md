@@ -29,6 +29,8 @@ On the phone, open
 **[the latest APK](https://github.com/SethDonohue/trail-gauge/releases/latest/download/trailgauge.apk)**
 and install it. Android asks once to allow installs from your browser or file manager.
 Every build is listed on the [Releases](https://github.com/SethDonohue/trail-gauge/releases) page.
+Tablet? Same APK, with tablet-specific steps and a test checklist in
+[`docs/INSTALL-ANDROID-TABLET.md`](docs/INSTALL-ANDROID-TABLET.md).
 
 - A new release appears automatically about 15 minutes after any change to `app/` is pushed to
   `main`. To build without a code change: **Actions** > **Android APK** > **Run workflow**.
