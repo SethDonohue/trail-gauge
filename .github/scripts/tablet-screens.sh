@@ -42,6 +42,10 @@ double_tap_first_tile() {
 # Give the phone-sensor gauges something to show: a slight tilt.
 adb emu sensor set acceleration 1.2:9.6:1.8 > /dev/null 2>&1 || true
 
+# CI emulators are slow; don't let a "launcher isn't responding" dialog cover the screenshots.
+adb shell settings put global hide_error_dialogs 1
+adb shell input keyevent KEYCODE_HOME
+sleep 20
 log "install"
 adb install -r -g "$APK" > /dev/null
 # Suppress the one-time "Viewing full screen" tip, which covers the UI and swallows taps.
