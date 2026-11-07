@@ -11,6 +11,7 @@ log() { echo "== $*"; }
 shot() { sleep "${2:-5}"; adb exec-out screencap -p > "$OUT/$1.png" && log "saved $1.png"; }
 launch() {
   adb shell am force-stop "$PKG"
+  adb shell settings put secure immersive_mode_confirmations confirmed
   adb shell am start -W -n "$PKG/.MainActivity" > /dev/null
   sleep 8
 }
@@ -43,6 +44,8 @@ adb emu sensor set acceleration 1.2:9.6:1.8 > /dev/null 2>&1 || true
 
 log "install"
 adb install -r -g "$APK" > /dev/null
+# Suppress the one-time "Viewing full screen" tip, which covers the UI and swallows taps.
+adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 0
 NATIVE_SIZE=$(size)
