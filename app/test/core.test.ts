@@ -141,3 +141,24 @@ test('formatting', () => {
   assert.equal(fmtTemp(100, 'imperial'), '212°');
   assert.equal(fmtTemp(NaN, 'metric'), '--');
 });
+
+import { bestGrid, chunk } from '../src/core/layout.ts';
+
+test('grid: three gauges on common screens', () => {
+  assert.deepEqual(bestGrid(3, 900, 360), { cols: 3, rows: 1 });     // phone landscape
+  assert.deepEqual(bestGrid(3, 380, 820), { cols: 1, rows: 3 });     // phone portrait
+  assert.deepEqual(bestGrid(3, 1280, 760), { cols: 3, rows: 1 });    // tablet landscape
+  assert.deepEqual(bestGrid(3, 800, 1240), { cols: 1, rows: 3 });    // tablet portrait
+  assert.deepEqual(bestGrid(3, 620, 760), { cols: 2, rows: 2 });     // tablet half split-screen
+  assert.deepEqual(bestGrid(3, 400, 760), { cols: 1, rows: 3 });     // tablet one-third split
+});
+
+test('grid: six gauges', () => {
+  assert.deepEqual(bestGrid(6, 1280, 760), { cols: 3, rows: 2 });
+  assert.deepEqual(bestGrid(6, 800, 1240), { cols: 2, rows: 3 });
+  assert.deepEqual(bestGrid(6, 1900, 400), { cols: 6, rows: 1 });
+});
+
+test('chunk keeps order and leaves a short last row', () => {
+  assert.deepEqual(chunk([1, 2, 3], 2), [[1, 2], [3]]);
+});

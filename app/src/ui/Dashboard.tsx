@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { bestGrid, chunk } from '../core/layout';
 import { GaugeView } from '../gauges/GaugeView';
 import { C } from '../gauges/kit';
 import { GAUGE_LABEL, GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
@@ -14,6 +15,7 @@ const DOUBLE_TAP_MS = 300;
 const TAP_SLOP_DP = 40;
 const LOCKOUT_MPS = 8 / 3.6; // settings are locked above 8 km/h
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
+const GAP = 12;
 
 const makeDoubleTap = (onDoubleTap: () => void) =>
   Gesture.Tap()
@@ -53,12 +55,23 @@ function SourceBadge() {
     if (motion === 'hub' || engineSrc === 'hub') parts.push(`HUB: ${hub.toUpperCase()}`);
   }
   const warn = (motion === 'hub' || engineSrc === 'hub') && hub !== 'connected';
-  return <Text style={[styles.badge, warn && { color: C.warn }]}>{parts.join('  ·  ')}</Text>;
+  return (
+    <Text style={[styles.badge, warn && { color: C.warn }]} numberOfLines={1}>
+      {parts.join('  ·  ')}
+    </Text>
+  );
 }
 
 export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [view, setView] = useState<ViewState>({ mode: 'GROUP' });
-  const groupGauges = settingsStore.useSelect(s => s.groupGauges);
+  const chosen = settingsStore.useSelect(s => s.groupGauges);
+  const showAll = settingsStore.useSelect(s => s.groupShowsAll);
+  const groupGauges: readonly GaugeId[] = showAll ? GAUGE_REGISTRY : chosen;
+  const [area, setArea] = useState({ w: 0, h: 0 });
+  const onGroupLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (Math.abs(width - area.w) > 1 || Math.abs(height - area.h) > 1) setArea({ w: width, h: height });
+  };
   const moving = statusStore.useSelect(s => (s.speedMps ?? 0) > LOCKOUT_MPS);
   const insets = useSafeAreaInsets();
   const n = GAUGE_REGISTRY.length;
@@ -95,7 +108,15 @@ export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
   const content =
     view.mode === 'GROUP' ? (
       <View style={[styles.group, pad]}>
-        {groupGauges.map((id, i) => <Tile key={`${id}-${i}`} id={id} onOpen={open} />)}
+        <View style={styles.grid} onLayout={onGroupLayout}>
+          {area.w > 0
+            ? chunk(groupGauges, bestGrid(groupGauges.length, area.w, area.h, GAP).cols).map((row, r) => (
+                <View key={r} style={styles.gridRow}>
+                  {row.map((id, i) => <Tile key={`${id}-${r}-${i}`} id={id} onOpen={open} />)}
+                </View>
+              ))
+            : null}
+        </View>
       </View>
     ) : (
       <GestureDetector gesture={singleGesture}>
@@ -115,7 +136,9 @@ export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
     <View style={styles.container}>
       {content}
       <View style={[styles.topBar, pad]} pointerEvents="box-none">
-        <SourceBadge />
+        <View style={styles.badgeWrap}>
+          <SourceBadge />
+        </View>
         <Pressable
           onPress={onOpenSettings}
           disabled={moving}
@@ -131,12 +154,11 @@ export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  group: {
-    flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 36, paddingBottom: 12, gap: 12,
-  },
+  group: { flex: 1, paddingTop: 36, paddingBottom: 12 },
+  grid: { flex: 1, gap: GAP },
+  gridRow: { flex: 1, flexDirection: 'row', gap: GAP },
   tile: {
-    flex: 1, height: '100%', backgroundColor: C.panel,
+    flex: 1, backgroundColor: C.panel,
     borderWidth: 1, borderColor: C.edge, borderRadius: 16, overflow: 'hidden',
   },
   single: { flex: 1, paddingTop: 36, paddingBottom: 20 },
@@ -145,8 +167,9 @@ const styles = StyleSheet.create({
   dotOn: { backgroundColor: C.accent },
   topBar: {
     position: 'absolute', top: 8, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16,
   },
+  badgeWrap: { flex: 1, flexShrink: 1 },
   badge: { color: C.quiet, fontSize: 12, letterSpacing: 1, fontWeight: '600' },
   gear: { color: C.quiet, fontSize: 12, letterSpacing: 1, fontWeight: '700' },
 });

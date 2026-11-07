@@ -1,0 +1,92 @@
+name: Tablet screenshots
+
+# Runs the app on an Android tablet emulator and screenshots it at tablet, split-screen and
+# phone sizes. Results go to the ci-screenshots branch (screens/README.md shows them all).
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/tablet-screens.yml', '.github/scripts/tablet-screens.sh']
+  workflow_dispatch:
+
+concurrency:
+  group: tablet-screens-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # push the ci-screenshots branch
+
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build x86_64 APK for the emulator
+        working-directory: app
+        env:
+          EXPO_NO_TELEMETRY: 1
+          NODE_ENV: production
+        run: |
+          npm ci
+          npx expo prebuild --platform android --clean --no-install
+          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=x86_64/' android/gradle.properties
+          (cd android && ./gradlew assembleRelease --no-daemon)
+          cp android/app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/emu.apk"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on tablet emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_tablet
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash .github/scripts/tablet-screens.sh emu.apk screens
+
+      - name: Publish screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d screens ] || exit 0
+          cd screens
+          {
+            echo "# Tablet screenshots"
+            echo
+            echo "Commit ${GITHUB_SHA::7}, run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+            echo
+            for f in *.png; do echo "## ${f%.png}"; echo; echo "![${f%.png}]($f)"; echo; done
+          } > README.md
+          git init -q -b ci-screenshots
+          git add .
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-screenshots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tablet-screens
+          path: screens/
+          retention-days: 14

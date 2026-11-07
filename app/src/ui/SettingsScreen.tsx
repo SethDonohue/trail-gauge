@@ -84,7 +84,7 @@ export function SettingsScreen({ visible, onClose }: { visible: boolean; onClose
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}
-      supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}>
+      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}>
       <View style={[styles.screen, { paddingLeft: Math.max(insets.left, 16), paddingRight: Math.max(insets.right, 16) }]}>
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
@@ -144,7 +144,16 @@ export function SettingsScreen({ visible, onClose }: { visible: boolean; onClose
             <Segmented value={s.units} onChange={v => updateSettings({ units: v })}
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
           </Row>
-          {[0, 1, 2].map(i => (
+          <Row label="Screen rotation"
+            hint="Locked stops trail bumps from rotating the screen. Split-screen always follows the window.">
+            <Segmented value={s.orientation} onChange={v => updateSettings({ orientation: v })}
+              options={[{ value: 'landscape', label: 'Landscape' }, { value: 'portrait', label: 'Portrait' }, { value: 'auto', label: 'Auto' }]} />
+          </Row>
+          <Row label="Group view shows" hint="All six suits a tablet">
+            <Segmented value={s.groupShowsAll ? 'all' : 'three'} onChange={v => updateSettings({ groupShowsAll: v === 'all' })}
+              options={[{ value: 'three', label: '3 chosen' }, { value: 'all', label: 'All 6' }]} />
+          </Row>
+          {s.groupShowsAll ? null : [0, 1, 2].map(i => (
             <Row key={i} label={`Group gauge ${i + 1}`}>
               <Segmented value={s.groupGauges[i]} onChange={g => setSlot(i, g)} options={gaugeOptions} />
             </Row>
@@ -206,20 +215,21 @@ export function SettingsScreen({ visible, onClose }: { visible: boolean; onClose
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, paddingTop: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingBottom: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingBottom: 8, paddingTop: 8 },
   title: { color: C.ink, fontSize: 22, fontWeight: '700' },
   note: { flex: 1, color: C.accent, fontSize: 14 },
   section: { color: C.quiet, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginTop: 20, marginBottom: 4 },
   row: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.edge, gap: 16,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.edge,
+    columnGap: 16, rowGap: 8,
   },
-  rowLabel: { flex: 1 },
-  rowControl: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
+  rowLabel: { flexGrow: 1, flexShrink: 1, flexBasis: 220 },
+  rowControl: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, flexShrink: 1, maxWidth: '100%' },
   label: { color: C.ink, fontSize: 16 },
   hint: { color: C.quiet, fontSize: 13, marginTop: 2 },
   value: { color: C.ink, fontSize: 15, fontVariant: ['tabular-nums'] },
-  seg: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, borderColor: C.edge, overflow: 'hidden' },
+  seg: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 10, borderWidth: 1, borderColor: C.edge, overflow: 'hidden', flexShrink: 1 },
   segItem: { paddingHorizontal: 12, paddingVertical: 8 },
   segOn: { backgroundColor: C.accent },
   segText: { color: C.quiet, fontSize: 14 },

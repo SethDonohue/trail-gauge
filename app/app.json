@@ -3,7 +3,7 @@
     "name": "TrailGauge",
     "slug": "trailgauge",
     "version": "0.1.0",
-    "orientation": "landscape",
+    "orientation": "default",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0b0d0e",
     "newArchEnabled": true,
