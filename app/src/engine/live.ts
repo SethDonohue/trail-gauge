@@ -32,6 +32,8 @@ export function put(ch: Channel, v: number | null): void {
 // ---- Staleness: recomputed 5x per second; React re-renders only when a flag flips. ----
 
 const STALE_MS = 600;
+// GPS height arrives about once a second, so altitude gets a longer window.
+const STALE_MS_BY_CHANNEL: Partial<Record<Channel, number>> = { altitude: 3000 };
 const GAUGE_CHANNELS: Record<GaugeId, Channel[]> = {
   INCLINOMETER: ['pitch', 'roll'],
   COMPASS: ['heading'],
@@ -54,7 +56,7 @@ function tick() {
   let changed = false;
   const next = { ...fresh };
   for (const id of Object.keys(GAUGE_CHANNELS) as GaugeId[]) {
-    const ok = GAUGE_CHANNELS[id].every(ch => now - lastUpdate[ch] < STALE_MS);
+    const ok = GAUGE_CHANNELS[id].every(ch => now - lastUpdate[ch] < (STALE_MS_BY_CHANNEL[ch] ?? STALE_MS));
     if (ok !== next[id]) {
       next[id] = ok;
       changed = true;
@@ -96,6 +98,8 @@ export interface Status {
   gpsAltitudeM: number | null;
   gpsVerticalAccM: number | null;
   pressureHpa: number | null;
+  baroAvailable: boolean | null;
+  altitudeSource: 'baro' | 'gps' | null; // what is driving the altitude gauge now
   gravity: Vec3 | null;
   magFieldUt: number | null;
   magDisturbed: boolean;
@@ -111,6 +115,8 @@ export const statusStore = createStore<Status>({
   gpsAltitudeM: null,
   gpsVerticalAccM: null,
   pressureHpa: null,
+  baroAvailable: null,
+  altitudeSource: null,
   gravity: null,
   magFieldUt: null,
   magDisturbed: false,

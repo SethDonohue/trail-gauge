@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
 import type { Units } from '../core/format';
 import type { Mount } from '../core/orientation';
-import { STD_QNH_HPA } from '../core/altitude';
+import { STD_QNH_HPA, type AltitudeSourcePref } from '../core/altitude';
 import type { GaugeId } from '../gauges/registry';
 import { createStore } from './observable';
 
@@ -18,6 +18,7 @@ export interface Settings {
   groupShowsAll: boolean; // all six gauges in group view (for tablets)
   orientation: Orientation;
   mount: Mount | null; // phone mounting rotation from "Zero level"
+  altitudeSource: AltitudeSourcePref;
   qnhHpa: number;
   declinationDeg: number | null;
   pitchWarnDeg: number;
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   groupShowsAll: false,
   orientation: 'landscape',
   mount: null,
+  altitudeSource: 'auto',
   qnhHpa: STD_QNH_HPA,
   declinationDeg: null,
   pitchWarnDeg: 30,

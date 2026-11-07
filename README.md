@@ -20,7 +20,8 @@ temperature, and battery voltage.
 | Part | Status |
 | --- | --- |
 | Specification | Rev B complete |
-| Dashboard app | Code complete; typechecks; unit tests pass; APK builds in CI. Not yet tested on a phone |
+| Dashboard app (Android) | Code complete; typechecks; unit tests pass; APK builds in CI; layouts verified on an emulated tablet, split-screen and phone. Not yet tested on a physical phone or tablet |
+| iOS app | Not started |
 | Hub hardware and firmware | Not started; the app already speaks the Rev B BLE protocol |
 
 ## Getting the app on a phone

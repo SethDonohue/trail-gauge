@@ -8,7 +8,9 @@ import {
 } from '../src/core/frame.ts';
 import { EmaFilter, HeadingFilter } from '../src/core/filters.ts';
 import { attitude, defaultMount, magneticHeading, mountFromUp, type Vec3 } from '../src/core/orientation.ts';
-import { pressureToAltitudeM, qnhFromElevation } from '../src/core/altitude.ts';
+import {
+  gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
+} from '../src/core/altitude.ts';
 import { fmtAltitude, fmtHeading, fmtTemp } from '../src/core/format.ts';
 
 const hex = (s: string) => Uint8Array.from(s.split(' ').map(h => parseInt(h, 16)));
@@ -161,4 +163,21 @@ test('grid: six gauges', () => {
 
 test('chunk keeps order and leaves a short last row', () => {
   assert.deepEqual(chunk([1, 2, 3], 2), [[1, 2], [3]]);
+});
+
+test('altitude source: auto prefers the barometer and falls back to GPS', () => {
+  assert.equal(resolveAltitudeSource('auto', true), 'baro');
+  assert.equal(resolveAltitudeSource('auto', false), 'gps');
+  assert.equal(resolveAltitudeSource('gps', true), 'gps');
+  assert.equal(resolveAltitudeSource('baro', false), 'baro');
+});
+
+test('GPS altitude fixes: poor or missing ones are rejected', () => {
+  assert.equal(gpsAltitudeUsable(1500, 8), true);
+  assert.equal(gpsAltitudeUsable(1500, 40), true);
+  assert.equal(gpsAltitudeUsable(1500, 41), false);
+  assert.equal(gpsAltitudeUsable(1500, null), true); // accuracy unknown
+  assert.equal(gpsAltitudeUsable(1500, 0), true);
+  assert.equal(gpsAltitudeUsable(null, 5), false);
+  assert.equal(gpsAltitudeUsable(NaN, 5), false);
 });

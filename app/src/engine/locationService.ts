@@ -9,6 +9,8 @@ type Sub = { remove(): void };
 export class LocationService {
   private subs: Sub[] = [];
   private headingSub: Sub | null = null;
+  // Called on every GPS fix with its height and the receiver's vertical accuracy estimate.
+  onFix: ((altM: number | null, accM: number | null) => void) | null = null;
 
   async start(): Promise<void> {
     const { granted } = await Location.requestForegroundPermissionsAsync();
@@ -25,6 +27,7 @@ export class LocationService {
             gpsAltitudeM: c.altitude,
             gpsVerticalAccM: c.altitudeAccuracy,
           });
+          this.onFix?.(c.altitude, c.altitudeAccuracy);
           if (!this.headingSub) this.learnDeclination();
         },
       ),

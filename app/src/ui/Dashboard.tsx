@@ -47,10 +47,11 @@ function SourceBadge() {
   const motion = settingsStore.useSelect(s => s.motionSource);
   const engineSrc = settingsStore.useSelect(s => s.engineSource);
   const hub = statusStore.useSelect(s => s.hub);
+  const altSrc = statusStore.useSelect(s => s.altitudeSource);
   const parts: string[] = [];
   if (motion === 'demo' && engineSrc === 'demo') parts.push('DEMO');
   else {
-    if (motion === 'phone') parts.push('PHONE SENSORS');
+    if (motion === 'phone') parts.push(altSrc === 'gps' ? 'PHONE SENSORS (GPS ALT)' : 'PHONE SENSORS');
     if (engineSrc === 'demo') parts.push('DEMO TEMPS');
     if (motion === 'hub' || engineSrc === 'hub') parts.push(`HUB: ${hub.toUpperCase()}`);
   }

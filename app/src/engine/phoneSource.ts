@@ -1,5 +1,5 @@
 import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
-import { pressureToAltitudeM } from '../core/altitude';
+import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
 import { EmaFilter, HeadingFilter } from '../core/filters';
 import {
   attitude, defaultMount, magneticHeading, mountFromUp, norm, normalize, wrap360,
@@ -22,11 +22,15 @@ export class PhoneSource {
   private lastBaroMs = 0;
   private lastDiagMs = 0;
   private pressureHpa: number | null = null;
+  private hasBaro = false;
+  private lastGpsMs = 0;
+  private altSrc: AltitudeSource | null = null;
 
   private readonly pitchF = new EmaFilter(0.15);
   private readonly rollF = new EmaFilter(0.15);
   private readonly headingF = new HeadingFilter(0.4);
   private readonly altF = new EmaFilter(0.5);
+  private readonly gpsAltF = new EmaFilter(4); // GPS height is noisy: smooth harder
 
   async start(): Promise<void> {
     if (await DeviceMotion.isAvailableAsync()) {
@@ -39,7 +43,9 @@ export class PhoneSource {
       Magnetometer.setUpdateInterval(40);
       this.subs.push(Magnetometer.addListener(m => (this.mag = [m.x, m.y, m.z])));
     }
-    if (await Barometer.isAvailableAsync()) {
+    this.hasBaro = await Barometer.isAvailableAsync();
+    statusStore.set({ baroAvailable: this.hasBaro });
+    if (this.hasBaro) {
       Barometer.setUpdateInterval(100);
       this.subs.push(Barometer.addListener(b => this.onPressure(b.pressure)));
     }
@@ -52,6 +58,8 @@ export class PhoneSource {
     this.rollF.reset();
     this.headingF.reset();
     this.altF.reset();
+    this.gpsAltF.reset();
+    this.altSrc = null;
   }
 
   // Stores the current pose as level. Park on flat ground first.
@@ -121,14 +129,39 @@ export class PhoneSource {
     }
   }
 
+  // Picks the altitude sensor from the setting and what the device has; resets filters on a change.
+  private activeAltSource(): AltitudeSource {
+    const src = resolveAltitudeSource(settingsStore.get().altitudeSource, this.hasBaro);
+    if (src !== this.altSrc) {
+      this.altSrc = src;
+      this.altF.reset();
+      this.gpsAltF.reset();
+      statusStore.set({ altitudeSource: src });
+    }
+    return src;
+  }
+
+  // GPS height, used when the setting is GPS or the device has no barometer. Poor fixes are
+  // dropped, so the gauge greys out instead of showing a bad number.
+  onGpsAltitude(altM: number | null, accM: number | null): void {
+    if (this.activeAltSource() !== 'gps') return;
+    if (!gpsAltitudeUsable(altM, accM)) return;
+    const now = Date.now();
+    const dt = this.lastGpsMs ? (now - this.lastGpsMs) / 1000 : 0;
+    this.lastGpsMs = now;
+    put('altitude', this.gpsAltF.update(altM, dt));
+  }
+
   private onPressure(p: number): void {
     if (!Number.isFinite(p) || p < 300 || p > 1100) return;
     this.pressureHpa = p;
     const now = Date.now();
     const dt = this.lastBaroMs ? (now - this.lastBaroMs) / 1000 : 0;
     this.lastBaroMs = now;
-    const alt = pressureToAltitudeM(p, settingsStore.get().qnhHpa);
-    put('altitude', this.altF.update(alt, dt));
+    if (this.activeAltSource() === 'baro') {
+      const alt = pressureToAltitudeM(p, settingsStore.get().qnhHpa);
+      put('altitude', this.altF.update(alt, dt));
+    }
     if (Math.abs((statusStore.get().pressureHpa ?? 0) - p) > 0.05) {
       statusStore.set({ pressureHpa: Math.round(p * 100) / 100 });
     }

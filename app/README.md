@@ -32,6 +32,36 @@ If tilting the nose up shows nose-down, set **Tilt reads backwards?** to Flipped
 
 Settings lock above 8 km/h (needs location permission).
 
+## Tablets and split screen
+
+The layout adapts to any window size, so the same app works on phones, tablets, and in
+split-screen beside a mapping app (Gaia GPS, onX Offroad, and so on).
+
+- Group view picks the grid that makes the gauges largest: 3 x 2 on a landscape tablet,
+  2 x 3 in portrait or half-width split, a single row in a short top/bottom split.
+- On a tablet's first run the app starts in auto-rotate and shows all six gauges together.
+  Both are changeable in Settings (*Screen rotation*, *Group view shows*).
+- Phones keep the landscape lock and three chosen gauges by default.
+- Install and test steps for tablets: [`../docs/INSTALL-ANDROID-TABLET.md`](../docs/INSTALL-ANDROID-TABLET.md).
+- Layouts are checked on an emulated tablet in CI (workflow *Tablet screenshots*); the images are
+  on the `ci-screenshots` branch.
+
+## Altitude source
+
+Settings > *Altitude source* (phone sensors only):
+
+- **Auto** (default): barometer if the device has one, otherwise GPS height.
+- **Barometer**: smooth and instant, but needs *Set current elevation* (or GPS) to stay accurate as
+  the weather changes.
+- **GPS**: no drift, but slower and noisier. The app smooths it, drops fixes the receiver
+  reports as poor (worse than 40 m vertical accuracy), and greys the gauge out if none arrive.
+
+The top bar shows "GPS ALT" when GPS is driving the altitude gauge.
+
+## iOS
+
+Not available yet. Android only for now; an iOS build needs an Apple developer setup and a Mac.
+
 ## First run
 
 The app asks for location (speed, declination, GPS elevation) and Bluetooth (hub) permissions.

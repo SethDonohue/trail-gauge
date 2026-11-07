@@ -42,7 +42,9 @@ The same APK runs on phones and tablets. No computer is needed.
 | Settings > Zero now, with the tablet flat in its mount | Roll and pitch read 0 |
 | Tilt the tablet | Roll and pitch follow, in the right direction |
 | Turn the tablet slowly | Compass follows. If it is wrong, keep it away from magnets and metal |
-| Settings > Set current elevation | Enter a known elevation; altitude follows |
+| Altitude (outdoors, with a GPS fix) | A number appears within a few seconds; compare with a map or known elevation |
+| Settings > Altitude source | Switch between Auto, Barometer and GPS and compare |
+| Settings > Set current elevation | Only affects the barometer; enter a known elevation and the reading follows |
 
 To use split screen: open TrailGauge, open the recent-apps view, tap the TrailGauge icon,
 choose **Split screen**, then pick the map app for the other half. On Samsung tablets, the
@@ -50,8 +52,9 @@ edge panel or **Open in pop-up view** also works.
 
 ## Known limits
 
-- **No barometer, no altitude.** Many tablets have no pressure sensor. On those the Altitude
-  gauge currently shows `--`. Using GPS altitude on tablets without a barometer is planned.
+- **Altitude on tablets without a barometer** comes from GPS height (Settings > *Altitude
+  source* is **Auto**). It needs a GPS fix, so it shows `--` indoors, and it is smoothed and
+  slower than a barometer. The top bar shows "GPS ALT" when it is in use.
 - The compass and tilt need a **rigid mount** away from magnets (magnetic phone/tablet mounts
   upset the compass).
 - The app has not yet been tested on a physical tablet. Please report anything odd.

@@ -97,6 +97,15 @@ export function SettingsScreen({ visible, onClose }: { visible: boolean; onClose
             <Segmented value={s.motionSource} onChange={v => updateSettings({ motionSource: v })}
               options={[{ value: 'phone', label: 'Phone' }, { value: 'hub', label: 'Hub' }, { value: 'demo', label: 'Demo' }]} />
           </Row>
+          {s.motionSource === 'phone' ? (
+            <Row label="Altitude source"
+              hint={st.baroAvailable === false
+                ? 'This device has no barometer, so GPS height is used.'
+                : 'Auto uses the barometer, or GPS if there is none. Pick GPS if it reads better for you.'}>
+              <Segmented value={s.altitudeSource} onChange={v => updateSettings({ altitudeSource: v })}
+                options={[{ value: 'auto', label: 'Auto' }, { value: 'baro', label: 'Barometer' }, { value: 'gps', label: 'GPS' }]} />
+            </Row>
+          ) : null}
           <Row label="Temperatures, battery">
             <Segmented value={s.engineSource} onChange={v => updateSettings({ engineSource: v })}
               options={[{ value: 'hub', label: 'Hub' }, { value: 'demo', label: 'Demo' }, { value: 'off', label: 'Off' }]} />

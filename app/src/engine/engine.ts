@@ -16,6 +16,7 @@ class Engine {
   private key = '';
 
   start(): void {
+    this.location.onFix = (alt, acc) => this.phone?.onGpsAltitude(alt, acc);
     this.location.start().catch(() => statusStore.set({ locationGranted: false }));
     this.apply(settingsStore.get());
     settingsStore.subscribe(() => this.apply(settingsStore.get()));
@@ -73,7 +74,7 @@ class Engine {
     let pressure: number | null = null;
     if (s.motionSource === 'phone') {
       pressure = this.phone?.lastPressure() ?? null;
-      if (pressure === null) return 'This phone has no barometer.';
+      if (pressure === null) return 'No barometer here: altitude comes from GPS, so there is nothing to calibrate.';
     } else if (s.motionSource === 'hub') {
       const alt = live.altitude.value;
       if (!Number.isFinite(alt)) return 'No altitude from the hub yet.';
