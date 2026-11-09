@@ -122,7 +122,7 @@ export function SettingsScreen({ visible, onClose }: { visible: boolean; onClose
           <Row label="Set current elevation" hint="From a map, trail sign or benchmark">
             <TextInput
               style={styles.input} value={elevation} onChangeText={setElevation}
-              keyboardType="numbers-and-punctuation" placeholder={altUnit(s.units)} placeholderTextColor={C.faint}
+              keyboardType="numbers-and-punctuation" placeholder={altUnit(s.units)} placeholderTextColor={C.quiet}
             />
             <Btn label="Set" onPress={async () => {
               const v = parseFloat(elevation.replace(',', ''));
@@ -238,18 +238,18 @@ const styles = StyleSheet.create({
   label: { color: C.ink, fontSize: 16 },
   hint: { color: C.quiet, fontSize: 13, marginTop: 2 },
   value: { color: C.ink, fontSize: 15, fontVariant: ['tabular-nums'] },
-  seg: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 10, borderWidth: 1, borderColor: C.edge, overflow: 'hidden', flexShrink: 1 },
+  seg: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 10, borderWidth: 1, borderColor: C.control, overflow: 'hidden', flexShrink: 1 },
   segItem: { paddingHorizontal: 12, paddingVertical: 8 },
   segOn: { backgroundColor: C.accent },
   segText: { color: C.quiet, fontSize: 14 },
   segTextOn: { color: C.bg, fontWeight: '700' },
   btn: { backgroundColor: C.accent, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 },
-  btnQuiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.edge },
+  btnQuiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.control },
   btnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   stepValue: { color: C.ink, fontSize: 16, minWidth: 56, textAlign: 'center', fontVariant: ['tabular-nums'] },
   input: {
-    color: C.ink, fontSize: 16, borderWidth: 1, borderColor: C.edge, borderRadius: 10,
+    color: C.ink, fontSize: 16, borderWidth: 1, borderColor: C.control, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 8, minWidth: 110,
   },
 });

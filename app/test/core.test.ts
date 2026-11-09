@@ -146,6 +146,7 @@ test('formatting', () => {
   assert.equal(fmtTemp(NaN, 'metric'), '--');
 });
 
+import { C, contrast } from '../src/core/palette.ts';
 import { bestGrid, chunk } from '../src/core/layout.ts';
 
 test('grid: three gauges on common screens', () => {
@@ -201,4 +202,19 @@ test('device motion sign: nose-down phone reads negative pitch (emulator regress
   const a = attitude(up, mountFromUp([1, 0, 0]));
   assert.ok(a.pitchDeg < -10 && a.pitchDeg > -11, `pitch ${a.pitchDeg}`);
   near(a.rollDeg, 0, 1e-9);
+});
+
+test('colour contrast meets WCAG 2.2 AA', () => {
+  const text: [string, string, string][] = [
+    ['values', C.ink, C.panel], ['labels/units/hints', C.quiet, C.panel], ['top bar, settings', C.quiet, C.bg],
+    ['warning', C.warn, C.panel], ['alarm', C.alarm, C.panel], ['accent', C.accent, C.panel],
+    ['button text', C.bg, C.accent],
+  ];
+  for (const [name, fg, bg] of text) assert.ok(contrast(fg, bg) >= 4.5, `${name}: ${contrast(fg, bg).toFixed(2)}`);
+  const nonText: [string, string, string][] = [
+    ['no-data digits (large text)', C.stale, C.panel], ['control borders', C.control, C.bg],
+    ['inactive page dot', C.control, C.bg], ['gauge fill', C.accent, C.panel],
+  ];
+  for (const [name, fg, bg] of nonText) assert.ok(contrast(fg, bg) >= 3, `${name}: ${contrast(fg, bg).toFixed(2)}`);
+  near(contrast('#000000', '#ffffff'), 21, 1e-9);
 });

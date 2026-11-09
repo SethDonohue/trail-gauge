@@ -3,18 +3,9 @@ import { Platform } from 'react-native';
 import { matchFont, Text, type SkFont } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
-export const C = {
-  bg: '#0b0d0e',
-  panel: '#14181a',
-  edge: '#2a3033',
-  ink: '#eef2ef',
-  quiet: '#8b9591',
-  faint: '#3b4245',
-  accent: '#7fd6a6',
-  warn: '#f4b740',
-  alarm: '#ff5a4e',
-  stale: '#4b5356',
-};
+import { C } from '../core/palette';
+
+export { C };
 
 const FAMILY = Platform.select({ android: 'sans-serif-condensed', default: 'Helvetica' });
 const GLYPHS = '0123456789-.,°:+()/ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';

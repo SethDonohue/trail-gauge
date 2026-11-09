@@ -146,7 +146,7 @@ export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
           hitSlop={16}
           accessibilityLabel={moving ? 'Settings locked while moving' : 'Settings'}
         >
-          <Text style={[styles.gear, moving && { color: C.faint }]}>{moving ? 'LOCKED' : 'SETTINGS'}</Text>
+          <Text style={styles.gear}>{moving ? 'LOCKED' : 'SETTINGS'}</Text>
         </Pressable>
       </View>
     </View>
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   single: { flex: 1, paddingTop: 36, paddingBottom: 20 },
   dots: { position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', gap: 8 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.faint },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.control },
   dotOn: { backgroundColor: C.accent },
   topBar: {
     position: 'absolute', top: 8, left: 0, right: 0,
