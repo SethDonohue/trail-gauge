@@ -65,6 +65,10 @@ iPad (`ci-screenshots-ios` branch). To put it on a real iPhone or iPad you build
 a free Apple ID: [`../docs/INSTALL-IOS.md`](../docs/INSTALL-IOS.md). iOS identifier:
 `com.sethdonohue.trailgauge`; iPad Split View is enabled.
 
+Note: `expo-screen-orientation` is pinned to 58.0.3. Version 58.0.4 (Nov 2026) references an
+`ExpoRootViewController` that no published `expo-modules-core` provides, so iOS fails to compile.
+Unpin when a newer Expo 58 release fixes it.
+
 ## Sensor sign convention
 
 expo-sensors reports `accelerationIncludingGravity` pointing *down* on both Android and iOS
