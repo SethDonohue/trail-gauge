@@ -2,7 +2,7 @@ import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
 import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
 import { EmaFilter, HeadingFilter } from '../core/filters';
 import {
-  attitude, defaultMount, magneticHeading, mountFromUp, norm, normalize, wrap360,
+  attitude, defaultMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize, wrap360,
   type Mount, type Vec3,
 } from '../core/orientation';
 import { put, live, statusStore } from './live';
@@ -87,8 +87,8 @@ export class PhoneSource {
     if (!g) return;
     const a = d.acceleration;
     const s = settingsStore.get();
-    // Gravity reaction (points up) = total minus linear acceleration, both fused by Android.
-    const raw: Vec3 = a ? [g.x - a.x, g.y - a.y, g.z - a.z] : [g.x, g.y, g.z];
+    // Up direction in the device frame (see upFromDeviceMotion for the sign convention).
+    const raw = upFromDeviceMotion(g, a);
     if (norm(raw) < 3) return; // free fall or a bad sample
     const up = normalize(raw.map(v => v * s.gravitySign) as Vec3);
     this.up = up;

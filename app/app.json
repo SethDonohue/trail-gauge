@@ -16,7 +16,12 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.WAKE_LOCK"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#0b0d0e"
+      }
     },
     "plugins": [
       [
@@ -24,7 +29,8 @@
         {
           "isBackgroundEnabled": false,
           "modes": [],
-          "neverForLocation": true
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": "TrailGauge connects to your TrailGauge hub over Bluetooth to show vehicle temperatures and battery voltage."
         }
       ],
       [
@@ -32,7 +38,25 @@
         {
           "locationWhenInUsePermission": "TrailGauge uses your location for speed, magnetic declination and altitude calibration."
         }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "TrailGauge uses motion sensors and the barometer to show tilt, heading and altitude."
+        }
       ]
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.sethdonohue.trailgauge",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "UIStatusBarHidden": true,
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
   }
 }

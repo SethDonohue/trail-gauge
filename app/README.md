@@ -60,7 +60,17 @@ The top bar shows "GPS ALT" when GPS is driving the altitude gauge.
 
 ## iOS
 
-Not available yet. Android only for now; an iOS build needs an Apple developer setup and a Mac.
+The same code runs on iOS. CI builds it for the simulator and screenshots it on an iPhone and an
+iPad (`ci-screenshots-ios` branch). To put it on a real iPhone or iPad you build it on a Mac with
+a free Apple ID: [`../docs/INSTALL-IOS.md`](../docs/INSTALL-IOS.md). iOS identifier:
+`com.sethdonohue.trailgauge`; iPad Split View is enabled.
+
+## Sensor sign convention
+
+expo-sensors reports `accelerationIncludingGravity` pointing *down* on both Android and iOS
+(flat, screen up: z = -9.8). `upFromDeviceMotion` in `src/core/orientation.ts` negates it; unit
+tests pin this down. Builds before this fix read tilt and the compass mirrored, so saved
+"Zero level" calibrations from them are cleared once on update.
 
 ## First run
 

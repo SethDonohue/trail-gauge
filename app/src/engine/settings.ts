@@ -26,7 +26,10 @@ export interface Settings {
   coolantWarnC: number;
   gravitySign: 1 | -1; // diagnostic: flips the phone's gravity convention if tilt reads backwards
   hubDeviceId: string | null;
+  sensorFrame: number; // bumps when the sensor convention changes; older zero calibrations are dropped
 }
+
+const SENSOR_FRAME = 2;
 
 export const DEFAULT_SETTINGS: Settings = {
   motionSource: 'phone',
@@ -44,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   coolantWarnC: 105,
   gravitySign: 1,
   hubDeviceId: null,
+  sensorFrame: SENSOR_FRAME,
 };
 
 const KEY = 'trailgauge.settings.v1';
@@ -54,7 +58,15 @@ export async function loadSettings(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw) {
-      settingsStore.set({ ...DEFAULT_SETTINGS, ...JSON.parse(raw) });
+      const saved = JSON.parse(raw) as Partial<Settings>;
+      if (saved.sensorFrame !== SENSOR_FRAME) {
+        // Saved by a build that read gravity with the wrong sign: re-zero needed.
+        saved.mount = null;
+        saved.gravitySign = 1;
+        saved.sensorFrame = SENSOR_FRAME;
+      }
+      settingsStore.set({ ...DEFAULT_SETTINGS, ...saved });
+      if (saved.mount === null) AsyncStorage.setItem(KEY, JSON.stringify(settingsStore.get())).catch(() => {});
     } else {
       // First run on a tablet: follow the device's rotation and show all six gauges.
       const { width, height } = Dimensions.get('screen');

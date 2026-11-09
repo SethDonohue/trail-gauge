@@ -57,6 +57,20 @@ export function mountFromUp(upDevice: Vec3): Mount {
   return { fwd: [0, 0, -1], left: [1, 0, 0], up };
 }
 
+// expo-sensors reports accelerationIncludingGravity in the iOS convention on both platforms:
+// lying flat, screen up, it reads (0, 0, -9.8), i.e. the vector points DOWN. (On Android it
+// computes accelerometer - 2 x gravity to match iOS.) Subtracting the linear acceleration
+// leaves gravity alone; negating it gives the "up" direction the rest of this file expects.
+export function upFromDeviceMotion(
+  withGravity: { x: number; y: number; z: number },
+  linear: { x: number; y: number; z: number } | null,
+): Vec3 {
+  const g: Vec3 = linear
+    ? [withGravity.x - linear.x, withGravity.y - linear.y, withGravity.z - linear.z]
+    : [withGravity.x, withGravity.y, withGravity.z];
+  return [-g[0], -g[1], -g[2]];
+}
+
 export const defaultMount = (upNow: Vec3) => mountFromUp(snapAxis(upNow));
 
 // Pitch: nose up positive. Roll: right side down positive.

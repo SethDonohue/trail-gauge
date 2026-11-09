@@ -1,0 +1,92 @@
+name: iOS simulator
+
+# Proves the app builds for iOS and runs on iPhone and iPad simulators, and screenshots it.
+# Unsigned (no Apple account needed). Screenshots go to the ci-screenshots-ios branch.
+# To install on a real iPhone, see docs/INSTALL-IOS.md (needs a Mac).
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/ios-simulator.yml', '.github/scripts/ios-screens.sh']
+  workflow_dispatch:
+
+concurrency:
+  group: ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # push the ci-screenshots-ios branch
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Use the newest Xcode on the runner
+        run: |
+          xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Install dependencies, typecheck, unit tests
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm test
+
+      - name: Generate native iOS project
+        working-directory: app
+        env:
+          EXPO_NO_TELEMETRY: 1
+        run: |
+          npx expo prebuild --platform ios --clean --no-install
+          cd ios && pod install
+
+      - name: Build for the simulator (unsigned)
+        working-directory: app/ios
+        env:
+          NODE_ENV: production
+        run: |
+          set -o pipefail
+          xcodebuild -workspace TrailGauge.xcworkspace -scheme TrailGauge -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -40
+
+      - name: Run on iPhone and iPad simulators
+        run: bash .github/scripts/ios-screens.sh app/ios/build/Build/Products/Release-iphonesimulator/TrailGauge.app screens
+
+      - name: Publish screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d screens ] || exit 0
+          cd screens
+          {
+            echo "# iOS simulator screenshots"
+            echo
+            echo "Commit ${GITHUB_SHA::7}, run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+            echo "Simulators have no motion sensors, so tilt and compass show \`--\`; temperatures are demo data."
+            echo
+            for f in *.png; do echo "## ${f%.png}"; echo; echo "![${f%.png}]($f)"; echo; done
+          } > README.md
+          git init -q -b ci-screenshots-ios
+          git add .
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "iOS screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-screenshots-ios
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screens
+          path: screens/
+          retention-days: 14

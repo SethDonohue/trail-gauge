@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, View } from 'react-native';
+import { Platform, StatusBar, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -34,7 +34,8 @@ export default function App() {
   }, [ready, orientation]);
 
   useEffect(() => {
-    NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+    // Android only: hide the navigation bar. iOS has none (the home indicator stays).
+    if (Platform.OS === 'android') NavigationBar.setVisibilityAsync('hidden').catch(() => {});
     loadSettings().finally(() => {
       engine.start();
       setReady(true);

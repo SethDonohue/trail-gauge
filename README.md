@@ -14,6 +14,11 @@ temperature, and battery voltage.
 | [`docs/spec/trailgauge-spec-rev-a.txt`](docs/spec/trailgauge-spec-rev-a.txt) | Original concept spec (Rev A), kept for reference |
 | [`app/`](app/) | Android dashboard app (Expo / React Native, TypeScript). See [`app/README.md`](app/README.md) |
 | `.github/workflows/android-apk.yml` | Builds the APK on every change to `app/` and publishes it as a release |
+| `.github/workflows/tablet-screens.yml` | Runs the app on an Android tablet emulator at tablet, split-screen and phone sizes; screenshots on the `ci-screenshots` branch |
+| `.github/workflows/ios-simulator.yml` | Builds the app for iOS and runs it on iPhone and iPad simulators; screenshots on the `ci-screenshots-ios` branch |
+| [`docs/INSTALL-ANDROID-TABLET.md`](docs/INSTALL-ANDROID-TABLET.md) | Installing on an Android tablet, plus a test checklist |
+| [`docs/INSTALL-IOS.md`](docs/INSTALL-IOS.md) | Installing on an iPhone or iPad from a Mac (free Apple ID) |
+| [`TODO.md`](TODO.md) | Open work |
 
 ## Status
 
@@ -21,7 +26,7 @@ temperature, and battery voltage.
 | --- | --- |
 | Specification | Rev B complete |
 | Dashboard app (Android) | Code complete; typechecks; unit tests pass; APK builds in CI; layouts verified on an emulated tablet, split-screen and phone. Not yet tested on a physical phone or tablet |
-| iOS app | Not started |
+| iOS app | Builds and starts on iPhone and iPad simulators in CI. Install on a device from a Mac: [`docs/INSTALL-IOS.md`](docs/INSTALL-IOS.md). No TestFlight/App Store build (needs the paid Apple program) |
 | Hub hardware and firmware | Not started; the app already speaks the Rev B BLE protocol |
 
 ## Getting the app on a phone

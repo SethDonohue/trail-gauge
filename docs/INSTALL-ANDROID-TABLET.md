@@ -58,6 +58,8 @@ edge panel or **Open in pop-up view** also works.
 - The compass and tilt need a **rigid mount** away from magnets (magnetic phone/tablet mounts
   upset the compass).
 - The app has not yet been tested on a physical tablet. Please report anything odd.
+- If you installed a build from before 8 Nov 2026, tilt and compass read mirrored. Update, then
+  run **Zero now** again (the app clears the old calibration automatically).
 
 ## Updating
 

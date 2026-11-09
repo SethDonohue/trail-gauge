@@ -7,7 +7,9 @@ import {
   parseFrameV2,
 } from '../src/core/frame.ts';
 import { EmaFilter, HeadingFilter } from '../src/core/filters.ts';
-import { attitude, defaultMount, magneticHeading, mountFromUp, type Vec3 } from '../src/core/orientation.ts';
+import {
+  attitude, defaultMount, magneticHeading, mountFromUp, upFromDeviceMotion, type Vec3,
+} from '../src/core/orientation.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
 } from '../src/core/altitude.ts';
@@ -180,4 +182,23 @@ test('GPS altitude fixes: poor or missing ones are rejected', () => {
   assert.equal(gpsAltitudeUsable(1500, 0), true);
   assert.equal(gpsAltitudeUsable(null, 5), false);
   assert.equal(gpsAltitudeUsable(NaN, 5), false);
+});
+
+test('device motion sign: expo reports gravity pointing down; we need up', () => {
+  // Flat on a table, screen up: expo gives z = -9.8 on both Android and iOS.
+  assert.deepEqual(upFromDeviceMotion({ x: 0, y: 0, z: -9.8 }, { x: 0, y: 0, z: 0 }), [-0, -0, 9.8]);
+  // Linear acceleration is removed first (braking hard while flat changes nothing).
+  const up = upFromDeviceMotion({ x: 0, y: 3, z: -9.8 }, { x: 0, y: 3, z: 0 });
+  near(up[1], 0, 1e-12);
+  near(up[2], 9.8, 1e-12);
+});
+
+test('device motion sign: nose-down phone reads negative pitch (emulator regression)', () => {
+  // Upright landscape on the dash (device +x up), leaning back so the screen faces slightly up:
+  // the back of the phone, i.e. the vehicle's forward axis, points slightly down.
+  // Accelerometer (specific force) ~ (+9.6, 0, +1.8); expo reports the negative.
+  const up = upFromDeviceMotion({ x: -9.6, y: 0, z: -1.8 }, null);
+  const a = attitude(up, mountFromUp([1, 0, 0]));
+  assert.ok(a.pitchDeg < -10 && a.pitchDeg > -11, `pitch ${a.pitchDeg}`);
+  near(a.rollDeg, 0, 1e-9);
 });
