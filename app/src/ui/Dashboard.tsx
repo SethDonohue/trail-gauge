@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { bestGrid, chunk } from '../core/layout';
 import { GaugeView } from '../gauges/GaugeView';
 import { C } from '../gauges/kit';
 import { GAUGE_LABEL, GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
+import { engine } from '../engine/engine';
 import { statusStore } from '../engine/live';
 import { settingsStore } from '../engine/settings';
 
@@ -16,6 +17,41 @@ const TAP_SLOP_DP = 40;
 const LOCKOUT_MPS = 8 / 3.6; // settings are locked above 8 km/h
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
 const GAP = 12;
+const ZERO_HOLD_MS = 800; // press and hold, so a bump on the trail can't re-zero by accident
+
+// Quick zero beside Settings: hold to make the current attitude read 0/0. Hidden while moving
+// (same lockout as Settings) and in demo mode, where there is nothing to zero.
+function ZeroButton() {
+  const motion = settingsStore.useSelect(s => s.motionSource);
+  const [state, setState] = useState<'idle' | 'holding' | 'done' | 'failed'>('idle');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  if (motion === 'demo') return null;
+
+  const finish = async () => {
+    const msg = await engine.zeroLevel();
+    setState(/zeroed/i.test(msg) ? 'done' : 'failed');
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setState('idle'), 2000);
+  };
+  const label = { idle: 'ZERO', holding: 'HOLD…', done: 'ZEROED', failed: 'NO DATA' }[state];
+  return (
+    <Pressable
+      onPressIn={() => setState(st => (st === 'idle' ? 'holding' : st))}
+      onPressOut={() => setState(st => (st === 'holding' ? 'idle' : st))}
+      onLongPress={finish}
+      delayLongPress={ZERO_HOLD_MS}
+      hitSlop={16}
+      accessibilityRole="button"
+      accessibilityLabel="Zero level"
+      accessibilityHint="Press and hold to set the current tilt as level"
+    >
+      <Text style={[styles.gear, state === 'done' && { color: C.accent }, state === 'failed' && { color: C.warn }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 const makeDoubleTap = (onDoubleTap: () => void) =>
   Gesture.Tap()
@@ -140,6 +176,7 @@ export function Dashboard({ onOpenSettings }: { onOpenSettings: () => void }) {
         <View style={styles.badgeWrap}>
           <SourceBadge />
         </View>
+        {moving ? null : <ZeroButton />}
         <Pressable
           onPress={onOpenSettings}
           disabled={moving}

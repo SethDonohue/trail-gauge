@@ -39,7 +39,7 @@ The same APK runs on phones and tablets. No computer is needed.
 | Rotate the tablet | Gauges rearrange to fill the screen: 3 x 2 in landscape, 2 x 3 in portrait |
 | Split screen beside a map app (Gaia GPS, onX Offroad, etc.) | The gauges resize to the window they have; nothing is cut off |
 | Double-tap a gauge | It opens full screen; double-tap again to go back |
-| Settings > Zero now, with the tablet flat in its mount | Roll and pitch read 0 |
+| Hold **ZERO** (top right) with the tablet in its mount on level ground | Roll and pitch read 0 |
 | Tilt the tablet | Roll and pitch follow, in the right direction |
 | Turn the tablet slowly | Compass follows. If it is wrong, keep it away from magnets and metal |
 | Altitude (outdoors, with a GPS fix) | A number appears within a few seconds; compare with a map or known elevation |
@@ -59,7 +59,7 @@ edge panel or **Open in pop-up view** also works.
   upset the compass).
 - The app has not yet been tested on a physical tablet. Please report anything odd.
 - If you installed a build from before 8 Nov 2026, tilt and compass read mirrored. Update, then
-  run **Zero now** again (the app clears the old calibration automatically).
+  hold **ZERO** again (the app clears the old calibration automatically).
 
 ## Updating
 

@@ -17,7 +17,8 @@ Default: phone sensors for motion, demo for temperatures and battery.
 ## Using phone sensors
 
 1. Mount the phone rigidly. Avoid magnetic mounts: they ruin the compass.
-2. Park on level ground, open Settings, tap **Zero now**. This also learns which way the phone
+2. Park on level ground and press and hold **ZERO** (top right, next to Settings) until it says
+   ZEROED, or tap **Zero now** in Settings. This also learns which way the phone
    faces; the back of the phone is taken as forward.
 3. Enter a known elevation (map, trail sign) under **Set current elevation**.
 4. The compass switches from magnetic (M) to true north (T) once GPS has a fix.
