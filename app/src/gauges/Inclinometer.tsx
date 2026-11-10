@@ -38,12 +38,14 @@ interface PaneProps {
   value: SharedValue<number>;
   sign: 1 | -1; // screen rotation direction
   path: SkPath;
+  shown: SharedValue<number>; // the number, refreshed at the tilt update rate
   warnDeg: number;
   fresh: boolean;
   compact: boolean;
+  accent: string;
 }
 
-function Pane({ x, y, w, h, label, value, sign, path, warnDeg, fresh, compact }: PaneProps) {
+function Pane({ x, y, w, h, label, value, shown, sign, path, warnDeg, fresh, compact, accent }: PaneProps) {
   const side = Math.min(w, h);
   const faces = useFaces(side, { big: compact ? 0.26 : 0.2, mid: 0.12, small: 0.1 });
   const cx = x + w / 2;
@@ -57,9 +59,10 @@ function Pane({ x, y, w, h, label, value, sign, path, warnDeg, fresh, compact }:
   const color = useDerivedValue(() => {
     const v = Math.abs(value.value);
     if (!fresh || !Number.isFinite(v)) return C.stale;
-    return v >= warnDeg + 10 ? C.alarm : v >= warnDeg ? C.warn : C.ink;
-  }, [fresh, warnDeg]);
-  const text = useDerivedValue(() => (fresh ? fmtAngle(value.value) : '--'), [fresh]);
+    return v >= warnDeg + 10 ? C.alarm : v >= warnDeg ? C.warn : accent;
+  }, [fresh, warnDeg, accent]);
+  const textColor = useDerivedValue(() => (color.value === accent ? C.ink : color.value), [accent]);
+  const text = useDerivedValue(() => (fresh ? fmtAngle(shown.value) : '--'), [fresh]);
 
   const groundY = cy + s * 0.5;
   return (
@@ -69,15 +72,16 @@ function Pane({ x, y, w, h, label, value, sign, path, warnDeg, fresh, compact }:
       <Group transform={transform}>
         <Path path={path} color={color} />
       </Group>
-      <LiveText text={text} face={faces.big} x={cx} y={y + h - faces.big.size * 0.75} color={color} />
+      <LiveText text={text} face={faces.big} x={cx} y={y + h - faces.big.size * 0.75} color={textColor} />
     </Group>
   );
 }
 
 export function Inclinometer(props: {
   w: number; h: number; compact: boolean; fresh: boolean; pitchWarnDeg: number; rollWarnDeg: number;
+  accent: string;
 }) {
-  const { w, h, compact, fresh, pitchWarnDeg, rollWarnDeg } = props;
+  const { w, h, compact, fresh, pitchWarnDeg, rollWarnDeg, accent } = props;
   const rear = useMemo(rearPath, []);
   const sideP = useMemo(sidePath, []);
   const sideBySide = w > h * 1.25;
@@ -86,11 +90,11 @@ export function Inclinometer(props: {
   return (
     <Group opacity={fresh ? 1 : 0.55}>
       {/* Rear view: right side down (positive roll) turns the silhouette clockwise. */}
-      <Pane {...a} label="ROLL" value={live.roll} sign={1} path={rear}
-        warnDeg={rollWarnDeg} fresh={fresh} compact={compact} />
+      <Pane {...a} label="ROLL" value={live.roll} shown={live.rollShown} sign={1} path={rear}
+        warnDeg={rollWarnDeg} fresh={fresh} compact={compact} accent={accent} />
       {/* Side view, nose to the right: nose up (positive pitch) turns it anticlockwise. */}
-      <Pane {...b} label="PITCH" value={live.pitch} sign={-1} path={sideP}
-        warnDeg={pitchWarnDeg} fresh={fresh} compact={compact} />
+      <Pane {...b} label="PITCH" value={live.pitch} shown={live.pitchShown} sign={-1} path={sideP}
+        warnDeg={pitchWarnDeg} fresh={fresh} compact={compact} accent={accent} />
     </Group>
   );
 }

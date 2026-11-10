@@ -14,8 +14,11 @@ export function ArcGauge(props: {
   minLabel: string; maxLabel: string;
   level: (v: number) => Level;
   format: (v: number) => string;
+  accent: string; // the gauge colour (normal state)
+  note?: string | null; // a short status line under the label (e.g. HOLDING)
+  noteColor?: string;
 }) {
-  const { w, h, compact, fresh, label, unit, value, min, max, minLabel, maxLabel, level, format } = props;
+  const { w, h, compact, fresh, label, unit, value, min, max, minLabel, maxLabel, level, format, accent } = props;
   const side = Math.min(w, h);
   const faces = useFaces(side, { big: compact ? 0.22 : 0.19, mid: 0.085, small: 0.065 });
   const cx = w / 2;
@@ -33,9 +36,9 @@ export function ArcGauge(props: {
   const color = useDerivedValue(() => {
     if (!fresh || !Number.isFinite(value.value)) return C.stale;
     const l = level(value.value);
-    return l === 2 ? C.alarm : l === 1 ? C.warn : C.accent;
-  }, [fresh]);
-  const textColor = useDerivedValue(() => (color.value === C.accent ? C.ink : color.value));
+    return l === 2 ? C.alarm : l === 1 ? C.warn : accent;
+  }, [fresh, accent]);
+  const textColor = useDerivedValue(() => (color.value === accent ? C.ink : color.value), [accent]);
   const text = useDerivedValue(() => (fresh ? format(value.value) : '--'), [fresh]);
 
   // End labels sit just below the arc's two ends (at 135 and 45 degrees).
@@ -48,6 +51,10 @@ export function ArcGauge(props: {
       <LiveText text={text} face={faces.big} x={cx} y={cy - faces.big.size * 0.1} color={textColor} />
       <LiveText text={unit} face={faces.mid} x={cx} y={cy + faces.big.size * 0.75} color={C.quiet} />
       <LiveText text={label.toUpperCase()} face={faces.small} x={cx} y={cy + r * 0.86} color={C.quiet} />
+      {props.note ? (
+        <LiveText text={props.note} face={faces.small} x={cx} y={cy + r * 0.86 + faces.small.size * 1.3}
+          color={props.noteColor ?? C.quiet} />
+      ) : null}
       {!compact ? (
         <>
           <LiveText text={minLabel} face={faces.small} x={cx - endDx} y={cy + endDy} color={C.quiet} />

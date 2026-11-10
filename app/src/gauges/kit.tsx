@@ -65,6 +65,17 @@ export function LiveText(props: {
   return <Text text={str} font={face.font} x={tx} y={y + face.size * 0.35} color={color} />;
 }
 
+// Like LiveText, but its position moves on the UI thread (compass letters).
+export function MovingText(props: {
+  text: string; face: Face; x: SharedValue<number>; y: SharedValue<number>; color: string;
+}) {
+  const { text, face, x, y, color } = props;
+  const w = textWidth(text, face.widths, face.avg);
+  const tx = useDerivedValue(() => x.value - w / 2);
+  const ty = useDerivedValue(() => y.value + face.size * 0.35);
+  return <Text text={text} font={face.font} x={tx} y={ty} color={color} />;
+}
+
 export const clamp01 = (v: number) => {
   'worklet';
   return Math.max(0, Math.min(1, v));

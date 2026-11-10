@@ -3,10 +3,27 @@ import { Circle, Group, Path, Skia } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import { cardinal, fmtHeading } from '../core/format';
 import { live } from '../engine/live';
-import { C, LiveText, useFaces } from './kit';
+import { C, LiveText, MovingText, useFaces, type Face } from './kit';
 
-export function Compass(props: { w: number; h: number; compact: boolean; fresh: boolean; disturbed: boolean }) {
-  const { w, h, compact, fresh, disturbed } = props;
+// The card turns with the heading; the N/E/S/W letters move round with it but stay upright.
+function CardinalLetter({ letter, bearing, r, cx, cy, face, color }: {
+  letter: string; bearing: number; r: number; cx: number; cy: number; face: Face; color: string;
+}) {
+  const x = useDerivedValue(() => {
+    const hd = Number.isFinite(live.heading.value) ? live.heading.value : 0;
+    return cx + r * Math.sin(((bearing - hd) * Math.PI) / 180);
+  });
+  const y = useDerivedValue(() => {
+    const hd = Number.isFinite(live.heading.value) ? live.heading.value : 0;
+    return cy - r * Math.cos(((bearing - hd) * Math.PI) / 180);
+  });
+  return <MovingText text={letter} face={face} x={x} y={y} color={color} />;
+}
+
+export function Compass(props: {
+  w: number; h: number; compact: boolean; fresh: boolean; disturbed: boolean; accent: string;
+}) {
+  const { w, h, compact, fresh, disturbed, accent } = props;
   const side = Math.min(w, h);
   const faces = useFaces(side, { big: compact ? 0.17 : 0.13, mid: 0.08, small: 0.06 });
   const cx = w / 2;
@@ -57,12 +74,12 @@ export function Compass(props: { w: number; h: number; compact: boolean; fresh: 
       <Group transform={transform}>
         <Path path={ticks.minor} color={C.quiet} style="stroke" strokeWidth={1.25} />
         <Path path={ticks.major} color={C.ink} style="stroke" strokeWidth={2.25} />
-        <LiveText text="N" face={m} x={0} y={-lr} color={C.accent} />
-        <LiveText text="E" face={m} x={lr} y={0} color={C.ink} />
-        <LiveText text="S" face={m} x={0} y={lr} color={C.ink} />
-        <LiveText text="W" face={m} x={-lr} y={0} color={C.ink} />
       </Group>
-      <Path path={lubber} color={disturbed ? C.warn : C.accent} />
+      <CardinalLetter letter="N" bearing={0} r={lr} cx={cx} cy={cy} face={m} color={accent} />
+      <CardinalLetter letter="E" bearing={90} r={lr} cx={cx} cy={cy} face={m} color={C.ink} />
+      <CardinalLetter letter="S" bearing={180} r={lr} cx={cx} cy={cy} face={m} color={C.ink} />
+      <CardinalLetter letter="W" bearing={270} r={lr} cx={cx} cy={cy} face={m} color={C.ink} />
+      <Path path={lubber} color={disturbed ? C.warn : accent} />
       <LiveText text={headingText} face={faces.big} x={cx} y={cy - faces.big.size * 0.15} color={color} />
       <LiveText text={subText} face={faces.small} x={cx} y={cy + faces.big.size * 0.75} color={C.quiet} />
       {disturbed && !compact ? (

@@ -7,7 +7,7 @@ import { live } from '../engine/live';
 import { C, LiveText, useFaces } from './kit';
 
 export function Altimeter(props: {
-  w: number; h: number; compact: boolean; fresh: boolean; units: Units; qnhHpa: number;
+  w: number; h: number; compact: boolean; fresh: boolean; units: Units; qnhHpa: number; accent: string;
 }) {
   const { w, h, compact, fresh, units, qnhHpa } = props;
   const side = Math.min(w, h);
@@ -17,7 +17,7 @@ export function Altimeter(props: {
   const text = useDerivedValue(() => (fresh ? fmtAltitude(live.altitude.value, units) : '--'), [fresh, units]);
   const color = fresh ? C.ink : C.stale;
   const uncalibrated = Math.abs(qnhHpa - STD_QNH_HPA) < 0.01;
-  const ref = uncalibrated ? 'Set elevation in Settings' : `Ref ${qnhHpa.toFixed(1)} hPa`;
+  const ref = uncalibrated ? 'Not calibrated: set elevation in settings' : `Ref ${qnhHpa.toFixed(1)} hPa`;
 
   return (
     <Group opacity={fresh ? 1 : 0.55}>

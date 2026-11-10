@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Installs the app on the running emulator (Pixel Tablet profile) and screenshots it at
-# tablet, split-screen and phone window sizes. Usage: tablet-screens.sh <apk> <out-dir>
+# Installs the app on the running emulator (Pixel Tablet profile) and screenshots every screen at
+# tablet, split-screen and phone sizes. Buttons are found by their accessibility labels or text
+# (uiautomator dump), so layout changes don't break the taps. Usage: tablet-screens.sh <apk> <out>
 set -uo pipefail
 APK=$1
 OUT=$2
@@ -8,100 +9,118 @@ PKG=com.trailgauge.app
 mkdir -p "$OUT"
 
 log() { echo "== $*"; }
-shot() { sleep "${2:-5}"; adb exec-out screencap -p > "$OUT/$1.png" && log "saved $1.png"; }
+shot() { sleep "${2:-4}"; adb exec-out screencap -p > "$OUT/$1.png" && log "saved $1.png"; }
 launch() {
   adb shell am force-stop "$PKG"
   adb shell settings put secure immersive_mode_confirmations confirmed
   adb shell am start -W -n "$PKG/.MainActivity" > /dev/null
-  sleep 8
+  sleep 10
 }
-size() { # physical px of the current display
-  adb shell wm size | tail -1 | grep -oE '[0-9]+x[0-9]+'
-}
-dens() { adb shell wm density | tail -1 | grep -oE '[0-9]+$'; }
-dp() { echo $(( $1 * $(dens) / 160 )); }
 
-# Taps the SETTINGS label, which sits 12 dp from the right edge and 8 dp from the top.
-open_settings() {
-  local wh w
-  wh=$(size); w=${wh%x*}
-  adb shell input tap $(( w - $(dp 40) )) "$(dp 16)"
+# Taps the first on-screen element whose content-desc or text matches the regex (case-insensitive).
+tap() {
+  local pattern=$1 xy
+  for _ in 1 2 3; do
+    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    xy=$(adb exec-out cat /sdcard/ui.xml | python3 -c '
+import re, sys
+pat = re.compile(sys.argv[1], re.I)
+xml = sys.stdin.read()
+for m in re.finditer(r"<node [^>]*>", xml):
+    n = m.group(0)
+    a = dict(re.findall(r"([\w-]+)=\"([^\"]*)\"", n))
+    if pat.search(a.get("content-desc", "")) or pat.search(a.get("text", "")):
+        x1, y1, x2, y2 = map(int, re.findall(r"\d+", a["bounds"]))
+        print((x1 + x2) // 2, (y1 + y2) // 2)
+        break
+' "$pattern")
+    if [ -n "$xy" ]; then
+      adb shell input tap $xy
+      sleep 2
+      return 0
+    fi
+    sleep 2
+  done
+  log "WARN: nothing matching /$pattern/ on screen"
+  return 1
+}
+back() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
+size() { adb shell wm size | tail -1 | grep -oE '[0-9]+x[0-9]+'; }
+swipe_left() { local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}; adb shell input swipe $((w*3/4)) $((h/2)) $((w/6)) $((h/2)) 120; sleep 2; }
+double_tap_center() {
+  local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}
+  adb shell "input tap $((w/4)) $((h/3)) & sleep 0.12; input tap $((w/4)) $((h/3))"
   sleep 3
 }
-close_settings() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
-
-# Two taps ~150 ms apart, on the first gauge tile.
-double_tap_first_tile() {
-  local wh w h x y
-  wh=$(size); w=${wh%x*}; h=${wh#*x}
-  x=$(( $(dp 12) + (w - $(dp 24)) / 6 )); y=$(( $(dp 36) + (h - $(dp 48)) / 4 ))
-  adb shell "input tap $x $y & sleep 0.15; input tap $x $y"
-  sleep 3
-}
+open_menu() { tap 'More: settings, guides and tips'; }
 
 # Give the phone-sensor gauges something to show: a slight tilt.
 adb emu sensor set acceleration 1.2:9.6:1.8 > /dev/null 2>&1 || true
-
 # CI emulators are slow; don't let a "launcher isn't responding" dialog cover the screenshots.
 adb shell settings put global hide_error_dialogs 1
 adb shell input keyevent KEYCODE_HOME
 sleep 20
+
 log "install"
 adb install -r -g "$APK" > /dev/null
-# Suppress the one-time "Viewing full screen" tip, which covers the UI and swallows taps.
 adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 0
 NATIVE_SIZE=$(size)
-NATIVE_DENS=$(dens)
-log "display $NATIVE_SIZE @ $NATIVE_DENS dpi"
+log "display $NATIVE_SIZE"
 
-log "tablet, landscape, first run (tablet defaults: auto-rotate, all six gauges)"
+log "first run: setup guide"
 launch
-shot 01-tablet-landscape-all6
+shot 01-setup-guide 2
+tap '^Next$'; shot 02-setup-step-2 1
+tap '^Skip setup$'
 
-log "tablet, portrait"
+log "tablet dashboard"
+shot 03-tablet-landscape-all
 adb shell settings put system user_rotation 1
-shot 02-tablet-portrait-all6 6
+shot 04-tablet-portrait-all 6
 adb shell settings put system user_rotation 0
 sleep 4
 
-log "settings on tablet"
-open_settings
-shot 03-tablet-settings 2
-close_settings
+log "menu, quick settings, settings, tips"
+open_menu; shot 05-menu 1
+tap '^Quick settings$'; shot 06-quick-settings 2
+back
+open_menu; tap '^All settings$'; shot 07-settings 2
+tap 'Show advanced settings'; adb shell input swipe 1280 1400 1280 300 300; shot 08-settings-advanced 2
+back
+open_menu; tap '^Guides & tips$'; shot 09-tips 2
+tap 'More about Placing the outside sensor'; shot 10-tip-outside 2
+back; back
 
 log "single gauge view (double tap)"
-double_tap_first_tile
-shot 04-tablet-single-view 2
-double_tap_first_tile
+double_tap_center
+shot 11-single-view 2
+double_tap_center
 
 W=${NATIVE_SIZE%x*}; H=${NATIVE_SIZE#*x}
-
 log "split-screen sizes: the app window shrinks while a map app takes the rest"
-adb shell wm size "$(( W / 2 ))x$H"
-shot 05-split-half-landscape 6
-open_settings
-shot 06-split-half-settings 2
-close_settings
-adb shell wm size "$(( W / 3 ))x$H"
-shot 07-split-third-landscape 6
-adb shell wm size "${W}x$(( H / 2 ))"
-shot 08-split-half-top-bottom 6
+adb shell wm size "$(( W / 2 ))x$H"; shot 12-split-half 6
+adb shell wm size "$(( W / 3 ))x$H"; shot 13-split-third 6
+adb shell wm size "${W}x$(( H / 2 ))"; shot 14-split-top-bottom 6
 adb shell wm size reset
 sleep 3
 
-log "phone (Galaxy S24-like), first run: landscape lock, three gauges"
+log "phone (Galaxy S24-like), first run: landscape, three gauges per page"
 adb shell pm clear "$PKG" > /dev/null
 adb shell pm grant "$PKG" android.permission.ACCESS_FINE_LOCATION || true
 adb shell pm grant "$PKG" android.permission.ACCESS_COARSE_LOCATION || true
 adb shell wm size 2340x1080
 adb shell wm density 420
 launch
-shot 09-phone-landscape-3
-open_settings
-shot 10-phone-settings 2
-close_settings
+tap '^Skip setup$'
+shot 15-phone-page-1
+swipe_left; shot 16-phone-page-2 2
+swipe_left; shot 17-phone-page-3 2
+open_menu; tap '^Quick settings$'; tap '^On$'; back
+shot 18-phone-night-mode 3
+open_menu; tap '^All settings$'; shot 19-phone-settings 2
+back
 
 adb shell wm size reset
 adb shell wm density reset
