@@ -63,10 +63,9 @@ jobs:
           NODE_ENV: production
         run: ./gradlew assembleRelease --no-daemon
 
-      # Paused while 0.3.0's features are rebuilt into this code: pushes still build and test, but
-      # only a manual run (Actions > Android APK > Run workflow) publishes a release.
+      # Every build of main is published as a release (0.4.0 was verified on a phone).
       - name: Publish release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
