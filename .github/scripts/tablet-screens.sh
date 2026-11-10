@@ -20,15 +20,15 @@ launch() {
 # Taps the first on-screen element whose content-desc or text matches the regex (case-insensitive).
 tap() {
   local pattern=$1 xy
-  for _ in 1 2 3; do
+  for _ in $(seq 1 "${TAP_TRIES:-3}"); do
     adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
     xy=$(adb exec-out cat /sdcard/ui.xml | python3 -c '
-import re, sys
+import html, re, sys
 pat = re.compile(sys.argv[1], re.I)
 xml = sys.stdin.read()
 for m in re.finditer(r"<node [^>]*>", xml):
     n = m.group(0)
-    a = dict(re.findall(r"([\w-]+)=\"([^\"]*)\"", n))
+    a = {k: html.unescape(v) for k, v in re.findall(r"([\w-]+)=\"([^\"]*)\"", n)}
     if pat.search(a.get("content-desc", "")) or pat.search(a.get("text", "")):
         x1, y1, x2, y2 = map(int, re.findall(r"\d+", a["bounds"]))
         print((x1 + x2) // 2, (y1 + y2) // 2)
@@ -45,8 +45,18 @@ for m in re.finditer(r"<node [^>]*>", xml):
   return 1
 }
 back() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
+# Scrolls down until the element appears, then taps it.
+tap_scroll() {
+  local wh w h
+  wh=$(size); w=${wh%x*}; h=${wh#*x}
+  for _ in 1 2 3 4 5 6 7 8; do
+    TAP_TRIES=1 tap "$1" 2>/dev/null && return 0
+    adb shell input swipe $((w/2)) $((h*4/5)) $((w/2)) $((h/5)) 400; sleep 1
+  done
+  log "WARN: /$1/ not found after scrolling"; return 1
+}
 size() { adb shell wm size | tail -1 | grep -oE '[0-9]+x[0-9]+'; }
-swipe_left() { local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}; adb shell input swipe $((w*3/4)) $((h/2)) $((w/6)) $((h/2)) 120; sleep 2; }
+swipe_left() { local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}; adb shell input swipe $((w*4/5)) $((h*3/5)) $((w/5)) $((h*3/5)) 180; sleep 3; }
 double_tap_center() {
   local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}
   adb shell "input tap $((w/4)) $((h/3)) & sleep 0.12; input tap $((w/4)) $((h/3))"
@@ -87,11 +97,13 @@ open_menu; shot 05-menu 1
 tap '^Quick settings$'; shot 06-quick-settings 2
 back
 open_menu; tap '^All settings$'; shot 07-settings 2
-tap 'Show advanced settings'; adb shell input swipe 1280 1400 1280 300 300; shot 08-settings-advanced 2
+tap_scroll 'Show advanced settings'; adb shell input swipe 1280 1400 1280 300 300; shot 08-settings-advanced 2
 back
-open_menu; tap '^Guides & tips$'; shot 09-tips 2
-tap 'More about Placing the outside sensor'; shot 10-tip-outside 2
+open_menu; tap '^Guides & tips$' && shot 09-tips 2
+tap 'More about Placing the outside sensor' && shot 10-tip-outside 2
 back; back
+# Never leave the app by accident: if the dashboard isn't up, relaunch.
+adb shell dumpsys activity activities | grep -q "topResumedActivity.*$PKG" || launch
 
 log "single gauge view (double tap)"
 double_tap_center
