@@ -1,0 +1,32 @@
+name: Restore 0.3.0 release
+
+# One-off: publishes the 0.3.0 APK (kept on the release-assets branch) as the latest release and
+# marks the older GitHub builds 2-7 as pre-releases. Runs when that branch is pushed.
+on:
+  push:
+    branches: [release-assets]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-assets
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          cp trailgauge-v0_3_0.apk trailgauge.apk
+          gh release delete v0.3.0 -R "$REPO" -y --cleanup-tag 2>/dev/null || true
+          gh release create v0.3.0 trailgauge.apk -R "$REPO" --target release-assets \
+            --title "TrailGauge 0.3.0 (restored)" --latest --notes-file NOTES.md
+          for n in 2 3 4 5 6 7; do
+            gh release edit "build-$n" -R "$REPO" --prerelease --latest=false || true
+          done
+          gh release list -R "$REPO"
