@@ -1,7 +1,9 @@
 # TrailGauge app
 
-Android dashboard for the TrailGauge off-road telemetry hub (spec Rev B). Landscape, dark,
-six gauges: tilt (pitch and roll), compass, altitude, coolant, outside temperature, battery.
+Dashboard for the TrailGauge off-road telemetry hub (spec Rev B), for Android and iOS. Dark,
+eight gauges: tilt (pitch and roll), compass, altitude, coolant, outside temperature, battery,
+cabin temperature and cabin humidity (with window fog risk). Version 0.4.0 restores the 0.3.0
+features; see [`../docs/v0.3.0-rebuild.md`](../docs/v0.3.0-rebuild.md).
 
 ## Data sources
 
@@ -9,29 +11,39 @@ Chosen in Settings, independently for two groups:
 
 | Group | Phone | Hub | Demo |
 | --- | --- | --- | --- |
-| Tilt, compass, altitude | Phone's gravity, magnetometer and barometer | BLE TelemetryFrameV2 | Synthetic |
-| Coolant, outside temp, battery | — | BLE TelemetryFrameV2 | Synthetic |
+| Tilt, compass, altitude | Phone's gravity, magnetometer and barometer (or GPS height) | BLE telemetry frame V2/V3 | Synthetic |
+| Coolant, outside, battery, cabin, humidity | — | BLE telemetry frame V2/V3 (cabin, humidity and a second outside sensor need V3) | Synthetic |
 
 Default: phone sensors for motion, demo for temperatures and battery.
 
 ## Using phone sensors
 
 1. Mount the phone rigidly. Avoid magnetic mounts: they ruin the compass.
-2. Park on level ground and press and hold **ZERO** (top right, next to Settings) until it says
-   ZEROED, or tap **Zero now** in Settings. This also learns which way the phone
-   faces; the back of the phone is taken as forward.
+2. Park on level ground and press and hold **ZERO** (top right) until it says ZEROED, or tap
+   **Zero now** in Settings. This also learns which way the phone faces; the back of the phone
+   is taken as forward.
 3. Enter a known elevation (map, trail sign) under **Set current elevation**.
 4. The compass switches from magnetic (M) to true north (T) once GPS has a fix.
 
 If tilting the nose up shows nose-down, set **Tilt reads backwards?** to Flipped (Diagnostics).
 
-## Gestures
+## Dashboard
 
-- Group view: double-tap a gauge to enlarge it.
-- Single view: swipe left or right through all six gauges; double-tap to go back.
-- Single taps do nothing, so bumps on the trail cannot switch views.
+- Gauges show three at a time. The first page holds the three you choose (Setup guide or
+  Settings); swipe sideways for the rest. Tablets can show all eight at once.
+- Double-tap a gauge to enlarge it; swipe through all gauges; double-tap to go back.
+- Single taps do nothing, so bumps on the trail cannot switch views. Above 8 km/h (5 mph) the view
+  locks (Settings > Lock view while moving), and Quick settings can lock it by hand. Settings
+  themselves are never locked.
+- Top bar: **MUTE** silences all alerts, hold **ZERO** to zero the level, **•••** opens Quick
+  settings, All settings, Guides & tips and the Setup guide.
+- The speaker button on a gauge mutes that gauge's alerts.
 
-Settings lock above 8 km/h (needs location permission).
+## Alerts
+
+Alerts beep (media volume) and vibrate when a reading first turns amber or red; red repeats every
+30 seconds. Gauges change colour even when muted, and demo data never beeps. Rules and thresholds:
+`src/core/alerts.ts` (tilt, coolant, battery, ice risk, cabin temperature, window fog).
 
 ## Tablets and split screen
 

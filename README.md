@@ -18,6 +18,7 @@ temperature, and battery voltage.
 | `.github/workflows/ios-simulator.yml` | Builds the app for iOS and runs it on iPhone and iPad simulators; screenshots on the `ci-screenshots-ios` branch |
 | [`docs/INSTALL-ANDROID-TABLET.md`](docs/INSTALL-ANDROID-TABLET.md) | Installing on an Android tablet, plus a test checklist |
 | [`docs/INSTALL-IOS.md`](docs/INSTALL-IOS.md) | Installing on an iPhone or iPad from a Mac (free Apple ID) |
+| [`docs/v0.3.0-rebuild.md`](docs/v0.3.0-rebuild.md) | How 0.3.0's features were recovered and rebuilt as 0.4.0 |
 | [`TODO.md`](TODO.md) | Open work |
 
 ## Status
