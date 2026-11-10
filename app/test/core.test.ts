@@ -215,9 +215,14 @@ test('colour contrast meets WCAG 2.2 AA', () => {
   const nonText: [string, string, string][] = [
     ['no-data digits (large text)', C.stale, C.panel], ['control borders', C.control, C.bg],
     ['inactive page dot', C.control, C.bg], ['gauge fill', C.accent, C.panel],
+    ['gauge speaker (muted)', C.warn, C.panel], ['gauge speaker', C.quiet, C.panel],
+    ['toggle knob (off)', C.quiet, C.bg], ['toggle knob (on)', C.bg, C.accent],
+    ['no-data silhouettes', C.stale, C.panel],
   ];
   for (const [name, fg, bg] of nonText) assert.ok(contrast(fg, bg) >= 3, `${name}: ${contrast(fg, bg).toFixed(2)}`);
   near(contrast('#000000', '#ffffff'), 21, 1e-9);
+  // Labels of a gauge with no data are drawn at full strength (no fading), so they pass as text.
+  assert.ok(contrast(C.quiet, C.panel) >= 4.5);
 });
 
 // ---- 0.4.0: features rebuilt from 0.3.0 ----

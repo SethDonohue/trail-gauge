@@ -68,9 +68,12 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
     'worklet';
     return v >= cabinWarnC + CABIN_ALARM_MARGIN_C ? 2 : v >= cabinWarnC ? 1 : 0;
   };
+  // The alert is window fog risk, not humidity itself; it is computed from three channels at
+  // 2 Hz by the alert monitor and captured here (the gauge remounts when it changes).
+  const fogLvl: Level = fog ?? 0;
   const humidityLevel = (_v: number): Level => {
     'worklet';
-    return 0; // the fog risk, not the humidity itself, is the alert: shown as a note
+    return fogLvl;
   };
   const temp = (v: number) => {
     'worklet';
@@ -90,7 +93,8 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
   if (size) {
     const common = { w: size.w, h: size.h, compact, fresh, accent };
     // Remount arc gauges when units, thresholds or colour change: their worklets capture those.
-    const arcKey = `${units}-${coolantWarnC}-${batteryLowV}-${iceRiskC}-${cabinWarnC}-${accent}`;
+    const arcKey = `${units}-${coolantWarnC}-${batteryLowV}-${iceRiskC}-${cabinWarnC}-${accent}-${fogLvl}`;
+    const tTemplate = '888°';
     switch (id) {
       case 'INCLINOMETER':
         body = <Inclinometer {...common} pitchWarnDeg={s.pitchWarnDeg} rollWarnDeg={s.rollWarnDeg} />;
@@ -105,15 +109,16 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
         body = (
           <ArcGauge key={arcKey} {...common} label="Coolant" unit={tempUnit(units)} value={live.coolant}
             min={40} max={130} minLabel={tLabel(40)} maxLabel={tLabel(130)}
-            level={coolantLevel} format={temp} />
+            level={coolantLevel} format={temp} valueTemplate={tTemplate} levelWords={['HOT', 'OVERHEATING']} />
         );
         break;
       case 'AMBIENT_TEMP': {
-        const note = !fresh ? null : disagree ? 'SENSORS DISAGREE' : holding ? 'HOLDING (SLOW)' : null;
+        const note = !fresh ? null : disagree ? 'SENSORS DISAGREE' : holding ? 'HOLDING WHILE SLOW' : null;
         body = (
           <ArcGauge key={arcKey} {...common} label="Outside" unit={tempUnit(units)} value={live.ambient}
             min={-20} max={50} minLabel={tLabel(-20)} maxLabel={tLabel(50)}
-            level={ambientLevel} format={temp} note={note} noteColor={disagree ? C.warn : C.quiet} />
+            level={ambientLevel} format={temp} note={note} noteColor={disagree ? C.warn : C.quiet}
+            valueTemplate={tTemplate} levelWords={['ICE RISK', 'ICE RISK']} />
         );
         break;
       }
@@ -121,24 +126,23 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
         body = (
           <ArcGauge key={arcKey} {...common} label="Battery" unit="V" value={live.battery}
             min={10} max={16} minLabel="10" maxLabel="16"
-            level={batteryLevel} format={volts} />
+            level={batteryLevel} format={volts} valueTemplate="88.8" levelWords={['CHECK VOLTAGE', 'VOLTAGE ALARM']} />
         );
         break;
       case 'CABIN_TEMP':
         body = (
           <ArcGauge key={arcKey} {...common} label="Cabin" unit={tempUnit(units)} value={live.cabin}
             min={-10} max={50} minLabel={tLabel(-10)} maxLabel={tLabel(50)}
-            level={cabinLevel} format={temp} />
+            level={cabinLevel} format={temp} valueTemplate={tTemplate} levelWords={['HOT', 'TOO HOT']} />
         );
         break;
       case 'HUMIDITY': {
-        const fogNote = fog === 2 ? 'WINDOW FOG' : fog === 1 ? 'FOG RISK' : null;
-        const dp = dewPoint !== null && !compact ? `DEW POINT ${fmtTemp(dewPoint, units)}` : null;
+        const dp = `DEW POINT ${dewPoint !== null && fresh ? fmtTemp(dewPoint, units) : '--'}`;
         body = (
           <ArcGauge key={arcKey} {...common} label="Humidity" unit="%" value={live.humidity}
             min={0} max={100} minLabel="0" maxLabel="100"
-            level={humidityLevel} format={pct}
-            note={!fresh ? null : fogNote ?? dp} noteColor={fog === 2 ? C.alarm : fog === 1 ? C.warn : C.quiet} />
+            level={humidityLevel} format={pct} valueTemplate="100" secondary={dp}
+            levelWords={['FOG RISK', 'WINDOW FOG']} />
         );
         break;
       }

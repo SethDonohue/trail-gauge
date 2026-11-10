@@ -164,7 +164,7 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
             <Segmented label="Night mode" value={s.nightMode} onChange={v => updateSettings({ nightMode: v })}
               options={[{ value: 'auto', label: 'Auto' }, { value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
           </Row>
-          <Row label="Night dimming" hint={`How much darker at night. ${st.night ? 'Night now.' : 'Day now.'}`}>
+          <Row label="Night dimming" hint={`How much darker at night. Dims the screen brightness, so text keeps its contrast. ${st.night ? 'Night now.' : 'Day now.'}`}>
             <Stepper label="Night dimming" value={s.nightDimPct} unit="%" step={10} min={0} max={80}
               onChange={v => updateSettings({ nightDimPct: v })} />
           </Row>

@@ -63,6 +63,14 @@ double_tap_center() {
   sleep 3
 }
 open_menu() { tap 'More: settings, guides and tips'; }
+GAUGES=(tilt compass altitude coolant outside battery cabin humidity)
+# From the dashboard: double-tap the first tile (Tilt), shoot each gauge full screen, swipe on.
+all_single() { # <prefix>
+  double_tap_center
+  for g in "${GAUGES[@]}"; do shot "$1-$g" 2; swipe_left; done
+  double_tap_center
+}
+use_demo_motion() { open_menu; tap '^All settings$'; tap '^Demo$'; back; sleep 2; }
 
 # Give the phone-sensor gauges something to show: a slight tilt.
 adb emu sensor set acceleration 1.2:9.6:1.8 > /dev/null 2>&1 || true
@@ -105,16 +113,20 @@ back; back
 # Never leave the app by accident: if the dashboard isn't up, relaunch.
 adb shell dumpsys activity activities | grep -q "topResumedActivity.*$PKG" || launch
 
-log "single gauge view (double tap)"
-double_tap_center
-shot 11-single-view 2
-double_tap_center
+log "every gauge full screen, tablet landscape and portrait (demo data so every reading shows)"
+use_demo_motion
+shot 11-tablet-all-demo 3
+all_single 20-tablet-full
+adb shell settings put system user_rotation 1; sleep 5
+shot 12-tablet-portrait-all-demo 2
+all_single 30-tablet-portrait-full
+adb shell settings put system user_rotation 0; sleep 4
 
 W=${NATIVE_SIZE%x*}; H=${NATIVE_SIZE#*x}
 log "split-screen sizes: the app window shrinks while a map app takes the rest"
-adb shell wm size "$(( W / 2 ))x$H"; shot 12-split-half 6
-adb shell wm size "$(( W / 3 ))x$H"; shot 13-split-third 6
-adb shell wm size "${W}x$(( H / 2 ))"; shot 14-split-top-bottom 6
+adb shell wm size "$(( W / 2 ))x$H"; shot 13-split-half 6
+adb shell wm size "$(( W / 3 ))x$H"; shot 14-split-third 6
+adb shell wm size "${W}x$(( H / 2 ))"; shot 14b-split-top-bottom 6
 adb shell wm size reset
 sleep 3
 
@@ -126,9 +138,12 @@ adb shell wm size 2340x1080
 adb shell wm density 420
 launch
 tap '^Skip setup$'
+use_demo_motion
 shot 15-phone-page-1
 swipe_left; shot 16-phone-page-2 2
 swipe_left; shot 17-phone-page-3 2
+swipe_left; sleep 1
+all_single 40-phone-full
 open_menu; tap '^Quick settings$'; tap '^On$'; back
 shot 18-phone-night-mode 3
 open_menu; tap '^All settings$'; shot 19-phone-settings 2

@@ -3,7 +3,7 @@ import { Circle, Group, Path, Skia } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import { cardinal, fmtHeading } from '../core/format';
 import { live } from '../engine/live';
-import { C, LiveText, MovingText, useFaces, type Face } from './kit';
+import { C, faceFor, FitText, fitSize, LiveText, MovingText, useFaces, type Face } from './kit';
 
 // The card turns with the heading; the N/E/S/W letters move round with it but stay upright.
 function CardinalLetter({ letter, bearing, r, cx, cy, face, color }: {
@@ -27,8 +27,9 @@ export function Compass(props: {
   const side = Math.min(w, h);
   const faces = useFaces(side, { big: compact ? 0.17 : 0.13, mid: 0.08, small: 0.06 });
   const cx = w / 2;
-  const cy = h / 2 + side * 0.03;
-  const r = side * 0.42;
+  const cy = h / 2;
+  const r = side * 0.44;
+  const heading = faceFor(fitSize('888°', r * 0.95, side * (compact ? 0.17 : 0.15)));
 
   const ticks = useMemo(() => {
     const minor = Skia.PathBuilder.Make();
@@ -60,16 +61,18 @@ export function Compass(props: {
   });
   const color = useDerivedValue(() => (fresh ? C.ink : C.stale), [fresh]);
   const headingText = useDerivedValue(() => (fresh ? fmtHeading(live.heading.value) : '---°'), [fresh]);
+  // Cardinal direction and which north: T (true) or M (magnetic).
   const subText = useDerivedValue(() => {
-    if (!fresh) return '';
-    const ref = live.headingTrue.value ? 'T' : 'M';
-    return `${cardinal(live.heading.value)}  ${ref}`;
+    if (!fresh) return '--';
+    const ref = live.headingTrue.value ? 'TRUE' : 'MAG';
+    return `${cardinal(live.heading.value)} · ${ref}`;
   }, [fresh]);
+  const sub = faceFor(fitSize('NW · TRUE', r * 0.8, side * 0.065, false));
 
   const lr = r * 0.66; // letter radius
   const m = faces.mid;
   return (
-    <Group opacity={fresh ? 1 : 0.55}>
+    <Group>
       <Circle cx={cx} cy={cy} r={r} color={C.edge} style="stroke" strokeWidth={1.5} />
       <Group transform={transform}>
         <Path path={ticks.minor} color={C.quiet} style="stroke" strokeWidth={1.25} />
@@ -80,10 +83,11 @@ export function Compass(props: {
       <CardinalLetter letter="S" bearing={180} r={lr} cx={cx} cy={cy} face={m} color={C.ink} />
       <CardinalLetter letter="W" bearing={270} r={lr} cx={cx} cy={cy} face={m} color={C.ink} />
       <Path path={lubber} color={disturbed ? C.warn : accent} />
-      <LiveText text={headingText} face={faces.big} x={cx} y={cy - faces.big.size * 0.15} color={color} />
-      <LiveText text={subText} face={faces.small} x={cx} y={cy + faces.big.size * 0.75} color={C.quiet} />
-      {disturbed && !compact ? (
-        <LiveText text="MAGNETIC INTERFERENCE" face={faces.small} x={cx} y={h - faces.small.size} color={C.warn} />
+      <LiveText text={headingText} face={heading} x={cx} y={cy - heading.size * 0.12} color={color} hangDegree />
+      <LiveText text={subText} face={sub} x={cx} y={cy + heading.size * 0.55 + sub.size * 0.7} color={C.quiet} />
+      {disturbed ? (
+        <FitText text="MAGNETIC INTERFERENCE" x={cx} y={cy + r * 0.52} maxW={r * 1.15} preferred={side * 0.06}
+          color={C.warn} bold />
       ) : null}
     </Group>
   );
