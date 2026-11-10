@@ -3,9 +3,13 @@
 export class EmaFilter {
   private y = 0;
   private seeded = false;
-  private readonly tau: number;
+  private tau: number;
 
   constructor(tauSeconds: number) {
+    this.tau = tauSeconds;
+  }
+
+  setTau(tauSeconds: number): void {
     this.tau = tauSeconds;
   }
 

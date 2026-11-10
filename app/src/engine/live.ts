@@ -2,6 +2,7 @@ import { makeMutable } from 'react-native-reanimated';
 import { useSyncExternalStore } from 'react';
 import type { Vec3 } from '../core/orientation';
 import type { GaugeId } from '../gauges/registry';
+import type { AlertId, Level } from '../core/alerts';
 import { createStore } from './observable';
 
 // High-rate values live in Reanimated shared values: writing one does not re-render React,
@@ -15,25 +16,56 @@ export const live = {
   coolant: makeMutable(NaN),
   ambient: makeMutable(NaN),
   battery: makeMutable(NaN),
+  cabin: makeMutable(NaN),
+  humidity: makeMutable(NaN), // cabin relative humidity, %
+  // Pitch and roll as shown in numbers: refreshed at the "Tilt update rate" so digits stay readable
+  // while the silhouettes move smoothly.
+  pitchShown: makeMutable(NaN),
+  rollShown: makeMutable(NaN),
 };
 
-export type Channel = 'pitch' | 'roll' | 'heading' | 'altitude' | 'coolant' | 'ambient' | 'battery';
+export type Channel =
+  | 'pitch' | 'roll' | 'heading' | 'altitude' | 'coolant' | 'ambient' | 'battery' | 'cabin' | 'humidity';
 
 const lastUpdate: Record<Channel, number> = {
-  pitch: 0, roll: 0, heading: 0, altitude: 0, coolant: 0, ambient: 0, battery: 0,
+  pitch: 0, roll: 0, heading: 0, altitude: 0, coolant: 0, ambient: 0, battery: 0, cabin: 0, humidity: 0,
 };
+
+let lastShownMs = 0;
+let shownEveryMs = 250;
+export function setTiltUpdateMs(ms: number): void {
+  shownEveryMs = ms;
+}
 
 export function put(ch: Channel, v: number | null): void {
   if (v === null || !Number.isFinite(v)) return; // invalid values age out and show as stale
   live[ch].value = v;
-  lastUpdate[ch] = Date.now();
+  const now = Date.now();
+  lastUpdate[ch] = now;
+  if ((ch === 'pitch' || ch === 'roll') && now - lastShownMs >= shownEveryMs) {
+    lastShownMs = now;
+    live.pitchShown.value = live.pitch.value;
+    live.rollShown.value = live.roll.value;
+  }
+}
+
+export function isChannelFresh(ch: Channel, now = Date.now()): boolean {
+  return now - lastUpdate[ch] < (STALE_MS_BY_CHANNEL[ch] ?? STALE_MS);
+}
+
+// Value if fresh, else null. Used by the alert monitor (JS thread, a few times a second).
+export function readFresh(ch: Channel, now = Date.now()): number | null {
+  const v = live[ch].value;
+  return isChannelFresh(ch, now) && Number.isFinite(v) ? v : null;
 }
 
 // ---- Staleness: recomputed 5x per second; React re-renders only when a flag flips. ----
 
 const STALE_MS = 600;
 // GPS height arrives about once a second, so altitude gets a longer window.
-const STALE_MS_BY_CHANNEL: Partial<Record<Channel, number>> = { altitude: 3000 };
+// Hub temperatures arrive at 1 Hz inside the 25 Hz frame, but may be repeated values; cabin and
+// humidity come from a slow sensor, so they get a longer window too.
+const STALE_MS_BY_CHANNEL: Partial<Record<Channel, number>> = { altitude: 3000, cabin: 3000, humidity: 3000 };
 const GAUGE_CHANNELS: Record<GaugeId, Channel[]> = {
   INCLINOMETER: ['pitch', 'roll'],
   COMPASS: ['heading'],
@@ -41,12 +73,14 @@ const GAUGE_CHANNELS: Record<GaugeId, Channel[]> = {
   ENGINE_TEMP: ['coolant'],
   AMBIENT_TEMP: ['ambient'],
   BATTERY: ['battery'],
+  CABIN_TEMP: ['cabin'],
+  HUMIDITY: ['humidity'],
 };
 
 type Freshness = Record<GaugeId, boolean>;
 let fresh: Freshness = {
   INCLINOMETER: false, COMPASS: false, ALTIMETER: false,
-  ENGINE_TEMP: false, AMBIENT_TEMP: false, BATTERY: false,
+  ENGINE_TEMP: false, AMBIENT_TEMP: false, BATTERY: false, CABIN_TEMP: false, HUMIDITY: false,
 };
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -104,6 +138,19 @@ export interface Status {
   magFieldUt: number | null;
   magDisturbed: boolean;
   message: string | null;
+  // 0.4.0
+  hubStatus2Bits: number;
+  hubFrameVersion: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  bluetoothGranted: boolean | null;
+  outsideHolding: boolean; // correction is keeping the outside reading from rising
+  outsideDisagree: boolean; // two outside sensors differ by more than 5 °C
+  night: boolean;
+  hasLightSensor: boolean | null;
+  magCalActive: boolean;
+  magCalProgress: string | null;
+  alertLevels: Partial<Record<AlertId, Level | null>>; // current levels (for gauges and settings)
 }
 
 export const statusStore = createStore<Status>({
@@ -121,4 +168,16 @@ export const statusStore = createStore<Status>({
   magFieldUt: null,
   magDisturbed: false,
   message: null,
+  hubStatus2Bits: 0,
+  hubFrameVersion: null,
+  latitude: null,
+  longitude: null,
+  bluetoothGranted: null,
+  outsideHolding: false,
+  outsideDisagree: false,
+  night: false,
+  hasLightSensor: null,
+  magCalActive: false,
+  magCalProgress: null,
+  alertLevels: {},
 });

@@ -32,6 +32,9 @@ export class DemoSource {
       put('coolant', 92 + 9 * Math.max(0, sin(60, -1.2)) + 0.4 * sin(5));
       put('ambient', 18 + 3 * sin(240));
       put('battery', 13.9 - 1.6 * Math.max(0, sin(45, 2)) + 0.05 * sin(1.7));
+      put('cabin', 22 + 2 * sin(300));
+      // Humidity climbs into fog-risk range now and then so the warning can be seen.
+      put('humidity', 55 + 30 * Math.max(0, sin(150, 0.5)) + sin(9));
     }
   }
 }

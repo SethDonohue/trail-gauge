@@ -26,6 +26,8 @@ export class LocationService {
             speedMps: c.speed !== null && c.speed >= 0 ? c.speed : null,
             gpsAltitudeM: c.altitude,
             gpsVerticalAccM: c.altitudeAccuracy,
+            latitude: c.latitude,
+            longitude: c.longitude,
           });
           this.onFix?.(c.altitude, c.altitudeAccuracy);
           if (!this.headingSub) this.learnDeclination();

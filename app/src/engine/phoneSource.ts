@@ -2,11 +2,13 @@ import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
 import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
 import { EmaFilter, HeadingFilter } from '../core/filters';
 import {
-  attitude, defaultMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize, wrap360,
+  attitude, defaultMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize,
   type Mount, type Vec3,
 } from '../core/orientation';
+import { resolveHeading } from '../core/heading';
+import { applyMagCal, MagCalibrator } from '../core/magcal';
 import { put, live, statusStore } from './live';
-import { settingsStore } from './settings';
+import { settingsStore, TILT_SMOOTHING_TAU_S } from './settings';
 
 type Sub = { remove(): void };
 
@@ -25,6 +27,7 @@ export class PhoneSource {
   private hasBaro = false;
   private lastGpsMs = 0;
   private altSrc: AltitudeSource | null = null;
+  private magCal: MagCalibrator | null = null;
 
   private readonly pitchF = new EmaFilter(0.15);
   private readonly rollF = new EmaFilter(0.15);
@@ -33,15 +36,24 @@ export class PhoneSource {
   private readonly gpsAltF = new EmaFilter(4); // GPS height is noisy: smooth harder
 
   async start(): Promise<void> {
+    const rateHz = settingsStore.get().sensorRateHz;
     if (await DeviceMotion.isAvailableAsync()) {
-      DeviceMotion.setUpdateInterval(20); // 50 Hz
+      DeviceMotion.setUpdateInterval(Math.round(1000 / rateHz));
       this.subs.push(DeviceMotion.addListener(d => this.onMotion(d)));
     } else {
       statusStore.set({ message: 'This phone has no motion sensors.' });
     }
     if (await Magnetometer.isAvailableAsync()) {
       Magnetometer.setUpdateInterval(40);
-      this.subs.push(Magnetometer.addListener(m => (this.mag = [m.x, m.y, m.z])));
+      this.subs.push(Magnetometer.addListener(m => {
+        const raw: Vec3 = [m.x, m.y, m.z];
+        if (this.magCal) {
+          this.magCal.add(raw);
+          const progress = this.magCal.progressText();
+          if (progress !== statusStore.get().magCalProgress) statusStore.set({ magCalProgress: progress });
+        }
+        this.mag = applyMagCal(raw, settingsStore.get().magCal);
+      }));
     }
     this.hasBaro = await Barometer.isAvailableAsync();
     statusStore.set({ baroAvailable: this.hasBaro });
@@ -69,6 +81,25 @@ export class PhoneSource {
     this.pitchF.reset();
     this.rollF.reset();
     return mountFromUp(up);
+  }
+
+  // Compass calibration: collect while the user turns the phone or drives a circle.
+  startMagCal(): void {
+    this.magCal = new MagCalibrator();
+    statusStore.set({ magCalActive: true, magCalProgress: this.magCal.progressText() });
+  }
+
+  finishMagCal(): Vec3 | null {
+    const off = this.magCal?.finish() ?? null;
+    this.magCal = null;
+    statusStore.set({ magCalActive: false, magCalProgress: null });
+    if (off) this.headingF.reset();
+    return off;
+  }
+
+  cancelMagCal(): void {
+    this.magCal = null;
+    statusStore.set({ magCalActive: false, magCalProgress: null });
   }
 
   lastPressure(): number | null {
@@ -105,6 +136,9 @@ export class PhoneSource {
     if (!this.autoMount) this.autoMount = defaultMount(up);
     const mount = s.mount ?? this.autoMount;
 
+    const tau = TILT_SMOOTHING_TAU_S[s.tiltSmoothing];
+    this.pitchF.setTau(tau);
+    this.rollF.setTau(tau);
     const att = attitude(up, mount);
     put('pitch', this.pitchF.update(att.pitchDeg, dt));
     put('roll', this.rollF.update(att.rollDeg, dt));
@@ -114,9 +148,12 @@ export class PhoneSource {
       const h = magneticHeading(up, this.mag, mount);
       if (h !== null) {
         const filtered = this.headingF.update(h, dt);
-        const decl = s.declinationDeg;
-        live.headingTrue.value = decl !== null;
-        put('heading', decl !== null ? wrap360(filtered + decl) : filtered);
+        const r = resolveHeading(filtered, {
+          northRef: s.northRef, declinationMode: s.declinationMode, learnedDeclinationDeg: s.declinationDeg,
+          manualDeclinationDeg: s.manualDeclinationDeg, headingOffsetDeg: s.headingOffsetDeg,
+        });
+        live.headingTrue.value = r.isTrue;
+        put('heading', r.deg);
       }
     }
     if (now - this.lastDiagMs > 250) {
@@ -149,7 +186,7 @@ export class PhoneSource {
     const now = Date.now();
     const dt = this.lastGpsMs ? (now - this.lastGpsMs) / 1000 : 0;
     this.lastGpsMs = now;
-    put('altitude', this.gpsAltF.update(altM, dt));
+    put('altitude', this.gpsAltF.update(altM, dt) + settingsStore.get().altitudeOffsetM);
   }
 
   private onPressure(p: number): void {
@@ -159,8 +196,9 @@ export class PhoneSource {
     const dt = this.lastBaroMs ? (now - this.lastBaroMs) / 1000 : 0;
     this.lastBaroMs = now;
     if (this.activeAltSource() === 'baro') {
-      const alt = pressureToAltitudeM(p, settingsStore.get().qnhHpa);
-      put('altitude', this.altF.update(alt, dt));
+      const s = settingsStore.get();
+      const alt = pressureToAltitudeM(p, s.qnhHpa);
+      put('altitude', this.altF.update(alt, dt) + s.altitudeOffsetM);
     }
     if (Math.abs((statusStore.get().pressureHpa ?? 0) - p) > 0.05) {
       statusStore.set({ pressureHpa: Math.round(p * 100) / 100 });

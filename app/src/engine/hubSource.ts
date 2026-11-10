@@ -3,11 +3,14 @@ import {
   BleManager, ConnectionPriority, State, type Device, type Subscription,
 } from 'react-native-ble-plx';
 import {
-  base64ToBytes, bytesToBase64, controlFrame, CONTROL, parseFrameV2, STATUS,
+  base64ToBytes, bytesToBase64, controlFrame, CONTROL, parseFrame, STATUS, STATUS2,
 } from '../core/frame';
-import { wrap360 } from '../core/orientation';
+import { resolveHeading } from '../core/heading';
 import { live, put, statusStore } from './live';
+import { outsideProcessor } from './outsideProcessor';
 import { settingsStore, updateSettings } from './settings';
+
+const WANT_MTU = 64; // frame V3 is 28 bytes; the default MTU of 23 only carries 20
 
 // GATT UUIDs for the TrailGauge hub (spec §7). Frozen: the firmware uses the same values.
 export const HUB_UUID = {
@@ -28,10 +31,16 @@ async function ensurePermissions(): Promise<boolean> {
     PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
     PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
   ]);
-  return Object.values(res).every(r => r === PermissionsAndroid.RESULTS.GRANTED);
+  const ok = Object.values(res).every(r => r === PermissionsAndroid.RESULTS.GRANTED);
+  statusStore.set({ bluetoothGranted: ok });
+  return ok;
 }
 
-// Connects to the hub, streams TelemetryFrameV2, and reconnects whenever the link drops.
+export async function requestBluetoothPermission(): Promise<boolean> {
+  return ensurePermissions();
+}
+
+// Connects to the hub, streams telemetry frames (V2 or V3), and reconnects whenever the link drops.
 export class HubSource {
   private running = false;
   private device: Device | null = null;
@@ -63,7 +72,7 @@ export class HubSource {
     getManager().stopDeviceScan();
     this.device?.cancelConnection().catch(() => {});
     this.device = null;
-    statusStore.set({ hub: 'off', hubName: null });
+    statusStore.set({ hub: 'off', hubName: null, hubFrameVersion: null });
   }
 
   async sendControl(opcode: number, payload?: number): Promise<boolean> {
@@ -101,6 +110,10 @@ export class HubSource {
     try {
       const d = await dev.connect({ timeout: 10000 });
       await d.discoverAllServicesAndCharacteristics();
+      if (Platform.OS === 'android') {
+        const m = await d.requestMTU(WANT_MTU).catch(() => d);
+        if ((m.mtu ?? 23) < 31) statusStore.set({ message: 'REQUEST_MTU too small for TelemetryFrameV3' });
+      }
       await d.requestConnectionPriority(ConnectionPriority.High).catch(() => d);
       this.device = d;
       if (!settingsStore.get().hubDeviceId) updateSettings({ hubDeviceId: d.id });
@@ -135,26 +148,37 @@ export class HubSource {
   }
 
   private onFrame(b64: string): void {
-    const f = parseFrameV2(base64ToBytes(b64));
+    const f = parseFrame(base64ToBytes(b64));
     if (!f) return; // unknown frame version: ignore rather than misread
+    const s = settingsStore.get();
     if (this.opts.motion) {
       put('pitch', f.pitchDeg);
       put('roll', f.rollDeg);
       if (f.headingMagDeg !== null) {
-        const decl = settingsStore.get().declinationDeg;
-        live.headingTrue.value = decl !== null;
-        put('heading', decl !== null ? wrap360(f.headingMagDeg + decl) : f.headingMagDeg);
+        const h = resolveHeading(f.headingMagDeg, {
+          northRef: s.northRef, declinationMode: s.declinationMode, learnedDeclinationDeg: s.declinationDeg,
+          manualDeclinationDeg: s.manualDeclinationDeg, headingOffsetDeg: s.headingOffsetDeg,
+        });
+        live.headingTrue.value = h.isTrue;
+        put('heading', h.deg);
       }
-      put('altitude', f.altitudeM);
+      put('altitude', f.altitudeM !== null ? f.altitudeM + s.altitudeOffsetM : null);
     }
     if (this.opts.engine) {
       put('coolant', f.status & STATUS.COOLANT_FAULT ? null : f.coolantC);
-      put('ambient', f.status & STATUS.AMBIENT_FAULT ? null : f.ambientC);
       put('battery', f.batteryV);
+      const a1 = f.status & (STATUS.AMBIENT_FAULT | STATUS.AMBIENT_STALE) ? null : f.ambientC;
+      const a2 = f.status2 & (STATUS2.AMBIENT2_FAULT | STATUS2.AMBIENT2_STALE) ? null : f.ambient2C;
+      outsideProcessor.process(a1, a2);
+      put('cabin', f.status2 & (STATUS2.CABIN_FAULT | STATUS2.CABIN_STALE) ? null : f.cabinC);
+      put('humidity', f.status2 & STATUS2.HUMIDITY_FAULT ? null : f.cabinRhPct);
     }
-    if (f.status !== statusStore.get().hubStatusBits) {
+    const st = statusStore.get();
+    if (f.status !== st.hubStatusBits || f.status2 !== st.hubStatus2Bits || f.version !== st.hubFrameVersion) {
       statusStore.set({
         hubStatusBits: f.status,
+        hubStatus2Bits: f.status2,
+        hubFrameVersion: f.version,
         magDisturbed: (f.status & STATUS.MAG_DISTURBED) !== 0,
       });
     }

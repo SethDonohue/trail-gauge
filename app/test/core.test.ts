@@ -389,3 +389,18 @@ test('gauge colours stay readable and never look like alerts', () => {
   assert.equal(usableGaugeColor('#101010'), C.accent);
   assert.equal(usableGaugeColor('nonsense'), C.accent);
 });
+
+import { hasVehicleBus, hubFaults, vehicleBusLabel } from '../src/core/faults.ts';
+import { STATUS } from '../src/core/frame.ts';
+
+test('hub faults: a CAN error is not a fault on vehicles without a bus', () => {
+  assert.deepEqual(hubFaults(STATUS.CAN_ERROR, 0, 2, 'auto'), ['Vehicle bus (CAN) error']);
+  assert.deepEqual(hubFaults(STATUS.CAN_ERROR, 0, 2, 'none'), []);
+  assert.deepEqual(hubFaults(STATUS.CAN_ERROR, STATUS2.NO_VEHICLE_BUS, 3, 'auto'), []);
+  assert.equal(hasVehicleBus(STATUS2.NO_VEHICLE_BUS, 'auto'), false);
+  assert.deepEqual(hubFaults(STATUS.COOLANT_FAULT, STATUS2.CABIN_FAULT, 3, 'auto'), ['Coolant sensor fault', 'Cabin sensor fault']);
+  assert.deepEqual(hubFaults(0, STATUS2.CABIN_FAULT, 2, 'auto'), []); // V2 frames carry no status2
+  assert.equal(vehicleBusLabel(0, null, 'auto'), 'Unknown until the hub connects');
+  assert.equal(vehicleBusLabel(0, 2, 'auto'), 'Not reported by this hub firmware');
+  assert.equal(vehicleBusLabel(STATUS2.NO_VEHICLE_BUS, 3, 'auto'), 'None (hub has no CAN/OBD-II)');
+});
