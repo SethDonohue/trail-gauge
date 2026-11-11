@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { wrap180 } from '../core/orientation';
-import { statusStore } from './live';
+import { put, statusStore } from './live';
 import { settingsStore, updateSettings } from './settings';
 
 type Sub = { remove(): void };
@@ -29,6 +29,11 @@ export class LocationService {
             latitude: c.latitude,
             longitude: c.longitude,
           });
+          // The receiver's own Doppler speed. Below ~0.7 mph it is noise, so it reads 0.
+          // In demo mode the demo source owns the speed gauge.
+          if (settingsStore.get().motionSource !== 'demo') {
+            put('speed', c.speed !== null && c.speed >= 0 ? (c.speed < 0.3 ? 0 : c.speed) : null);
+          }
           this.onFix?.(c.altitude, c.altitudeAccuracy);
           if (!this.headingSub) this.learnDeclination();
         },

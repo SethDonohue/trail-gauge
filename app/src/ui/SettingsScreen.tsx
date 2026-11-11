@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALERT_IDS, ALERT_LABEL, COOLANT_ALARM_MARGIN_C } from '../core/alerts';
 import { GAUGE_PRESETS, isReservedHue, wheelColorAt } from '../core/colors';
 import { hubFaults, vehicleBusLabel } from '../core/faults';
-import { altUnit } from '../core/format';
+import { altUnit, fmtSpeed, speedUnitFor, speedUnitLabel } from '../core/format';
 import { northRefSummary } from '../core/heading';
 import { alertMonitor } from '../engine/alertMonitor';
 import { engine } from '../engine/engine';
@@ -132,8 +132,12 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
 
           <Section title="DISPLAY" />
           <Row label="Units">
-            <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v })}
+            <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v, speedUnit: speedUnitFor(v) })}
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
+          </Row>
+          <Row label="Speed unit" hint="Also switches with one tap on the Speed gauge.">
+            <Segmented label="Speed unit" value={s.speedUnit} onChange={v => updateSettings({ speedUnit: v })}
+              options={[{ value: 'mph', label: 'mph' }, { value: 'kmh', label: 'km/h' }]} />
           </Row>
           <Row label="Screen orientation"
             hint="Auto follows the phone's auto-rotate setting. Lock it here if auto-rotate is off on the phone, or so a bump never flips the screen.">
@@ -356,7 +360,7 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
                 <Text style={ui.value}>{st.pressureHpa !== null ? `${st.pressureHpa.toFixed(1)} hPa` : 'No barometer'}</Text>
               </Row>
               <Row label="Speed (GPS)">
-                <Text style={ui.value}>{st.speedMps !== null ? (imperial ? `${(st.speedMps * 2.23694).toFixed(0)} mph` : `${(st.speedMps * 3.6).toFixed(0)} km/h`) : '--'}</Text>
+                <Text style={ui.value}>{st.speedMps !== null ? `${fmtSpeed(st.speedMps, s.speedUnit)} ${speedUnitLabel(s.speedUnit)}` : '--'}</Text>
               </Row>
               {usingHub ? (
                 <Row label="Telemetry frame">

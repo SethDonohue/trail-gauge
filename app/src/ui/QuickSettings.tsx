@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { speedUnitFor } from '../core/format';
 import { LOCKOUT_KMH, settingsStore, updateSettings } from '../engine/settings';
 import { C } from '../gauges/kit';
 import { Btn, Row, Segmented, Stepper, Toggle } from './controls';
@@ -36,8 +37,12 @@ export function QuickSettings({ visible, onClose, onOpenSettings, onOpenTips }: 
               onChange={v => updateSettings({ nightDimPct: v })} />
           </Row>
           <Row label="Units">
-            <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v })}
+            <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v, speedUnit: speedUnitFor(v) })}
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
+          </Row>
+          <Row label="Speed unit" hint="Also switches with one tap on the Speed gauge.">
+            <Segmented label="Speed unit" value={s.speedUnit} onChange={v => updateSettings({ speedUnit: v })}
+              options={[{ value: 'mph', label: 'mph' }, { value: 'kmh', label: 'km/h' }]} />
           </Row>
           <Row label="Screen orientation">
             <Segmented label="Screen orientation" value={s.orientation} onChange={v => updateSettings({ orientation: v })}

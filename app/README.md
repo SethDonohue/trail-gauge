@@ -52,12 +52,22 @@ split-screen beside a mapping app (Gaia GPS, onX Offroad, and so on).
 
 - Group view picks the grid that makes the gauges largest: 3 x 2 on a landscape tablet,
   2 x 3 in portrait or half-width split, a single row in a short top/bottom split.
-- On a tablet's first run the app starts in auto-rotate and shows all six gauges together.
+- On a tablet's first run the app starts in auto-rotate and shows all nine gauges together.
   Both are changeable in Settings (*Screen rotation*, *Group view shows*).
 - Phones keep the landscape lock and three chosen gauges by default.
 - Install and test steps for tablets: [`../docs/INSTALL-ANDROID-TABLET.md`](../docs/INSTALL-ANDROID-TABLET.md).
 - Layouts are checked on an emulated tablet in CI (workflow *Tablet screenshots*); the images are
   on the `ci-screenshots` branch.
+
+## Speed gauge
+
+GPS ground speed (the receiver's own Doppler speed, so it is not derived from position jumps).
+One tap on the mph / km/h button in the gauge's top-right corner switches the unit, on the small
+tile and full screen, and it works at any speed. *Quick settings* and *Settings* have the same
+choice; changing *Units* to metric or imperial also sets the speed unit, and the button can then
+override it. The scale is 0 to 100 mph or 0 to 160 km/h. Below about 0.7 mph the reading is
+forced to 0 (GPS noise). It needs location permission; without a fix it says "WAITING FOR GPS".
+It is on the second page by default; *Settings > Group view* can put it on the first.
 
 ## Altitude source
 

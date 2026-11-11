@@ -26,6 +26,7 @@ export class DemoSource {
       live.headingTrue.value = true;
       put('heading', wrap360(t * 6 + 25 * sin(17)));
       put('altitude', 1450 + 60 * sin(90) + 2 * sin(7));
+      put('speed', 13 + 12 * sin(40) + 1.5 * sin(6)); // about 0 to 55 mph, so both units show
     }
     if (this.opts.engine) {
       // Coolant drifts up into the warning band once a minute so alerts can be checked.

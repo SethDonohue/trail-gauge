@@ -4,7 +4,7 @@ import { Canvas } from '@shopify/react-native-skia';
 import { dewPointC, BATTERY_HIGH_ALARM_V, BATTERY_HIGH_WARN_V, BATTERY_ALARM_MARGIN_V,
   CABIN_ALARM_MARGIN_C, COOLANT_ALARM_MARGIN_C } from '../core/alerts';
 import { usableGaugeColor } from '../core/colors';
-import { fmtTemp, fmtVolts, tempUnit } from '../core/format';
+import { fmtSpeed, fmtTemp, fmtVolts, speedUnitLabel, tempUnit } from '../core/format';
 import { live, readFresh, statusStore, useFresh } from '../engine/live';
 import { settingsStore } from '../engine/settings';
 import { Altimeter } from './Altimeter';
@@ -49,6 +49,7 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
   };
 
   const units = s.units;
+  const speedUnit = s.speedUnit;
   const accent = usableGaugeColor(s.gaugeColor);
   const { coolantWarnC, batteryLowV, iceRiskC, cabinWarnC } = s;
   const coolantLevel = (v: number): Level => {
@@ -71,6 +72,10 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
   // The alert is window fog risk, not humidity itself; it is computed from three channels at
   // 2 Hz by the alert monitor and captured here (the gauge remounts when it changes).
   const fogLvl: Level = fog ?? 0;
+  const noLevel = (_v: number): Level => {
+    'worklet';
+    return 0; // speed has no alert
+  };
   const humidityLevel = (_v: number): Level => {
     'worklet';
     return fogLvl;
@@ -87,13 +92,17 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
     'worklet';
     return Number.isFinite(v) ? `${Math.round(v)}` : '--';
   };
+  const speed = (v: number) => {
+    'worklet';
+    return fmtSpeed(v, speedUnit);
+  };
   const tLabel = (c: number) => fmtTemp(c, units);
 
   let body: React.ReactNode = null;
   if (size) {
     const common = { w: size.w, h: size.h, compact, fresh, accent };
     // Remount arc gauges when units, thresholds or colour change: their worklets capture those.
-    const arcKey = `${units}-${coolantWarnC}-${batteryLowV}-${iceRiskC}-${cabinWarnC}-${accent}-${fogLvl}`;
+    const arcKey = `${units}-${coolantWarnC}-${batteryLowV}-${iceRiskC}-${cabinWarnC}-${accent}-${fogLvl}-${speedUnit}`;
     const tTemplate = '888°';
     switch (id) {
       case 'INCLINOMETER':
@@ -105,6 +114,19 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
       case 'ALTIMETER':
         body = <Altimeter {...common} units={units} qnhHpa={s.qnhHpa} />;
         break;
+      case 'SPEED': {
+        // Scale ends are about the same speed in either unit (100 mph is 161 km/h), in metres per second.
+        const maxMps = speedUnit === 'mph' ? 100 / 2.2369363 : 160 / 3.6;
+        const note = fresh ? null : s.motionSource === 'demo' || statusStore.get().locationGranted !== false
+          ? 'WAITING FOR GPS' : 'LOCATION OFF';
+        body = (
+          <ArcGauge key={arcKey} {...common} label="Speed (GPS)" unit={speedUnitLabel(speedUnit)} value={live.speed}
+            min={0} max={maxMps} minLabel="0" maxLabel={speedUnit === 'mph' ? '100' : '160'}
+            level={noLevel} format={speed} note={note} valueTemplate="888"
+            levelWords={['', '']} statusTemplate="WAITING FOR GPS" />
+        );
+        break;
+      }
       case 'ENGINE_TEMP':
         body = (
           <ArcGauge key={arcKey} {...common} label="Coolant" unit={tempUnit(units)} value={live.coolant}

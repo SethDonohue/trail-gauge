@@ -25,6 +25,7 @@ export function ArcGauge(props: {
   note?: string | null; // a short status (e.g. HOLDING (SLOW)); shown after any level words
   noteColor?: string;
   secondary?: string | null; // a second reading (e.g. DEW POINT 48°)
+  statusTemplate?: string; // widest status text, when it is not one of levelWords or the note
 }) {
   const {
     w, h, fresh, label, unit, value, min, max, minLabel, maxLabel, level, format, accent,
@@ -42,9 +43,9 @@ export function ArcGauge(props: {
   const smallSize = Math.max(11, side * 0.064);
   // Bottom row: min label, gauge label, max label (between the arc's two ends). Status below.
   const labelFace = faceFor(fitSize(label.toUpperCase(), r * 0.75, smallSize, false));
-  const statusTemplate = [levelWords[0], levelWords[1], props.note ?? ''].reduce((a, b) => (b.length > a.length ? b : a), '');
-  const statusWithNote = props.note ? `${levelWords[1]} · ${props.note}` : statusTemplate;
-  const statusFace = faceFor(fitSize(statusWithNote, r * 1.9, smallSize, true));
+  const statusTemplate = [levelWords[0], levelWords[1], props.note ?? '', props.statusTemplate ?? ''].reduce((a, b) => (b.length > a.length ? b : a), '');
+  const statusWithNote = props.note ? [levelWords[1], props.note].filter(Boolean).join(' · ') : '';
+  const statusFace = faceFor(fitSize(statusWithNote.length > statusTemplate.length ? statusWithNote : statusTemplate, r * 1.9, smallSize, true));
   const secondaryFace = props.secondary ? faceFor(fitSize(props.secondary, inner * 0.9, smallSize, false)) : null;
   const endFace = faceFor(fitSize(minLabel.length > maxLabel.length ? minLabel : maxLabel, r * 0.42, smallSize, false));
 

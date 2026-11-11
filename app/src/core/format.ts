@@ -44,5 +44,20 @@ export function fmtVolts(v: number): string {
   return v.toFixed(1);
 }
 
+export type SpeedUnit = 'mph' | 'kmh';
+
+export const MPS_TO_MPH = 2.2369363;
+export const MPS_TO_KMH = 3.6;
+
+// GPS speed arrives in metres per second.
+export function fmtSpeed(mps: number, unit: SpeedUnit): string {
+  'worklet';
+  if (!Number.isFinite(mps)) return '--';
+  return `${Math.round(Math.max(0, mps) * (unit === 'mph' ? 2.2369363 : 3.6))}`;
+}
+
+export const speedUnitLabel = (u: SpeedUnit) => (u === 'mph' ? 'mph' : 'km/h');
+export const speedUnitFor = (u: Units): SpeedUnit => (u === 'imperial' ? 'mph' : 'kmh');
+
 export const altUnit = (u: Units) => (u === 'imperial' ? 'ft' : 'm');
 export const tempUnit = (u: Units) => (u === 'imperial' ? '°F' : '°C');

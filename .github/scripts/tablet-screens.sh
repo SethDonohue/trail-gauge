@@ -63,7 +63,7 @@ double_tap_center() {
   sleep 3
 }
 open_menu() { tap 'More: settings, guides and tips'; }
-GAUGES=(tilt compass altitude coolant outside battery cabin humidity)
+GAUGES=(tilt compass altitude speed coolant outside battery cabin humidity)
 # From the dashboard: double-tap the first tile (Tilt), shoot each gauge full screen, swipe on.
 all_single() { # <prefix>
   double_tap_center

@@ -13,7 +13,7 @@ import {
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
 } from '../src/core/altitude.ts';
-import { fmtAltitude, fmtHeading, fmtTemp } from '../src/core/format.ts';
+import { fmtAltitude, fmtHeading, fmtSpeed, fmtTemp, speedUnitFor, speedUnitLabel } from '../src/core/format.ts';
 
 const hex = (s: string) => Uint8Array.from(s.split(' ').map(h => parseInt(h, 16)));
 const near = (a: number, b: number, tol = 1e-6) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b}`);
@@ -408,4 +408,29 @@ test('hub faults: a CAN error is not a fault on vehicles without a bus', () => {
   assert.equal(vehicleBusLabel(0, null, 'auto'), 'Unknown until the hub connects');
   assert.equal(vehicleBusLabel(0, 2, 'auto'), 'Not reported by this hub firmware');
   assert.equal(vehicleBusLabel(STATUS2.NO_VEHICLE_BUS, 3, 'auto'), 'None (hub has no CAN/OBD-II)');
+});
+
+test('speed: metres per second to mph and km/h, never negative, no data as --', () => {
+  assert.equal(fmtSpeed(0, 'mph'), '0');
+  assert.equal(fmtSpeed(27.7778, 'kmh'), '100');
+  assert.equal(fmtSpeed(44.704, 'mph'), '100');
+  assert.equal(fmtSpeed(13.4112, 'mph'), '30'); // 30 mph
+  assert.equal(fmtSpeed(13.4112, 'kmh'), '48'); // 48.3 km/h
+  assert.equal(fmtSpeed(-0.4, 'kmh'), '0');
+  assert.equal(fmtSpeed(NaN, 'mph'), '--');
+  // The scale end is within 1% of the same speed in both units, so the arc barely moves when the unit changes.
+  near((100 / 2.2369363) / (160 / 3.6), 1, 0.01); // within 1%
+});
+
+test('speed unit follows the units setting by default, and labels read correctly', () => {
+  assert.equal(speedUnitFor('imperial'), 'mph');
+  assert.equal(speedUnitFor('metric'), 'kmh');
+  assert.equal(speedUnitLabel('mph'), 'mph');
+  assert.equal(speedUnitLabel('kmh'), 'km/h');
+});
+
+test('contrast: speed unit button text', () => {
+  assert.ok(contrast(C.ink, C.control) >= 4.5, 'active unit');
+  assert.ok(contrast(C.quiet, C.panel) >= 4.5, 'inactive unit');
+  assert.ok(contrast(C.control, C.panel) >= 3, 'button outline');
 });

@@ -4,6 +4,7 @@ import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handl
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import type { AlertId } from '../core/alerts';
+import { speedUnitLabel } from '../core/format';
 import { bestGrid, chunk } from '../core/layout';
 import { gaugePages, pageAfterSwipe } from '../core/pages';
 import { engine } from '../engine/engine';
@@ -106,6 +107,28 @@ function GaugeMuteButton({ id }: { id: GaugeId }) {
   );
 }
 
+// The speedometer's corner button: one tap switches mph and km/h. Both units are always shown,
+// the active one highlighted, so the button also says which is on. Never locked by speed.
+function SpeedUnitButton({ id }: { id: GaugeId }) {
+  const unit = settingsStore.useSelect(s => s.speedUnit);
+  if (id !== 'SPEED') return null;
+  const other = unit === 'mph' ? 'kmh' : 'mph';
+  const seg = (u: 'mph' | 'kmh') => (
+    <View style={[styles.unitSeg, unit === u && styles.unitSegOn]}>
+      <Text style={[styles.unitText, unit === u && styles.unitTextOn]}>{speedUnitLabel(u).toUpperCase()}</Text>
+    </View>
+  );
+  return (
+    <Pressable onPress={() => updateSettings({ speedUnit: other })} hitSlop={6} style={styles.unitBtn}
+      accessibilityRole="button"
+      accessibilityLabel={`Speed unit: ${unit === 'mph' ? 'miles per hour' : 'kilometres per hour'}`}
+      accessibilityHint={`Tap to switch to ${other === 'mph' ? 'miles per hour' : 'kilometres per hour'}`}>
+      {seg('mph')}
+      {seg('kmh')}
+    </Pressable>
+  );
+}
+
 function Tile({ id, onOpen, locked }: { id: GaugeId; onOpen: (id: GaugeId) => void; locked: boolean }) {
   const gesture = useMemo(() => makeDoubleTap(() => { if (!locked) onOpen(id); }), [id, onOpen, locked]);
   return (
@@ -118,6 +141,7 @@ function Tile({ id, onOpen, locked }: { id: GaugeId; onOpen: (id: GaugeId) => vo
         </View>
       </GestureDetector>
       <GaugeMuteButton id={id} />
+      <SpeedUnitButton id={id} />
     </View>
   );
 }
@@ -285,6 +309,7 @@ export function Dashboard(actions: DashboardActions) {
           <View style={{ flex: 1 }}>
             <GaugeView id={GAUGE_REGISTRY[view.index]} compact={false} />
             <GaugeMuteButton id={GAUGE_REGISTRY[view.index]} />
+            <SpeedUnitButton id={GAUGE_REGISTRY[view.index]} />
           </View>
           <View style={styles.dots} pointerEvents="none">
             {GAUGE_REGISTRY.map((g, i) => (
@@ -340,6 +365,14 @@ const styles = StyleSheet.create({
     position: 'absolute', top: MUTE_BUTTON_INSET_DP, right: MUTE_BUTTON_INSET_DP,
     width: MUTE_BUTTON_SIZE_DP, height: MUTE_BUTTON_SIZE_DP, alignItems: 'center', justifyContent: 'center',
   },
+  unitBtn: {
+    position: 'absolute', top: MUTE_BUTTON_INSET_DP, right: MUTE_BUTTON_INSET_DP, minHeight: MUTE_BUTTON_SIZE_DP,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: C.control, overflow: 'hidden',
+  },
+  unitSeg: { paddingHorizontal: 10, minHeight: MUTE_BUTTON_SIZE_DP - 2, justifyContent: 'center' },
+  unitSegOn: { backgroundColor: C.control },
+  unitText: { color: C.quiet, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  unitTextOn: { color: C.ink },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'flex-end' },
   menu: {
     marginTop: 44, backgroundColor: C.panel, borderRadius: 14, borderWidth: 1, borderColor: C.control,

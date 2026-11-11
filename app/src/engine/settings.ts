@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
-import type { Units } from '../core/format';
+import type { SpeedUnit, Units } from '../core/format';
+import { speedUnitFor } from '../core/format';
 import type { Mount, Vec3 } from '../core/orientation';
 import { STD_QNH_HPA, type AltitudeSourcePref } from '../core/altitude';
 import type { AlertId } from '../core/alerts';
@@ -33,6 +34,7 @@ export interface Settings {
   hubDeviceId: string | null;
   // Dashboard
   units: Units;
+  speedUnit: SpeedUnit; // the speedometer's own unit: one tap on the gauge switches it
   groupGauges: [GaugeId, GaugeId, GaugeId]; // the first page
   groupShowsAll: boolean; // every gauge on one screen (tablets)
   orientation: Orientation;
@@ -85,6 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   vehicleBus: 'auto',
   hubDeviceId: null,
   units: 'imperial',
+  speedUnit: 'mph',
   groupGauges: ['INCLINOMETER', 'COMPASS', 'ALTIMETER'],
   groupShowsAll: false,
   orientation: 'auto',
@@ -146,6 +149,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<Setting
     vehicleBus: v => oneOf(v, ['auto', 'none']),
     hubDeviceId: v => v === null || typeof v === 'string',
     units: v => oneOf(v, ['imperial', 'metric']),
+    speedUnit: v => oneOf(v, ['mph', 'kmh']),
     groupGauges: v => Array.isArray(v) && v.length === 3 && v.every(isGauge),
     orientation: v => oneOf(v, ['landscape', 'portrait', 'auto']),
     gaugeColor: v => typeof v === 'string' && isHexColor(v),
@@ -180,6 +184,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<Setting
     const check = checks[k] ?? ((x: unknown) => typeof x === typeof d[k]);
     if (check(v)) out[k] = v;
   }
+  // Builds before the speedometer had no speed unit: follow the units they already chose.
+  if (!('speedUnit' in out)) out.speedUnit = speedUnitFor((out.units as Units | undefined) ?? 'imperial');
   if (out.sensorFrame !== SENSOR_FRAME) {
     // Saved by a build that read gravity with the wrong sign: re-zero needed.
     out.mount = null;

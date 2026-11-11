@@ -18,6 +18,7 @@ export const live = {
   battery: makeMutable(NaN),
   cabin: makeMutable(NaN),
   humidity: makeMutable(NaN), // cabin relative humidity, %
+  speed: makeMutable(NaN), // GPS ground speed, m/s
   // Pitch and roll as shown in numbers: refreshed at the "Tilt update rate" so digits stay readable
   // while the silhouettes move smoothly.
   pitchShown: makeMutable(NaN),
@@ -25,10 +26,10 @@ export const live = {
 };
 
 export type Channel =
-  | 'pitch' | 'roll' | 'heading' | 'altitude' | 'coolant' | 'ambient' | 'battery' | 'cabin' | 'humidity';
+  | 'pitch' | 'roll' | 'heading' | 'altitude' | 'coolant' | 'ambient' | 'battery' | 'cabin' | 'humidity' | 'speed';
 
 const lastUpdate: Record<Channel, number> = {
-  pitch: 0, roll: 0, heading: 0, altitude: 0, coolant: 0, ambient: 0, battery: 0, cabin: 0, humidity: 0,
+  pitch: 0, roll: 0, heading: 0, altitude: 0, coolant: 0, ambient: 0, battery: 0, cabin: 0, humidity: 0, speed: 0,
 };
 
 let lastShownMs = 0;
@@ -65,11 +66,12 @@ const STALE_MS = 600;
 // GPS height arrives about once a second, so altitude gets a longer window.
 // Hub temperatures arrive at 1 Hz inside the 25 Hz frame, but may be repeated values; cabin and
 // humidity come from a slow sensor, so they get a longer window too.
-const STALE_MS_BY_CHANNEL: Partial<Record<Channel, number>> = { altitude: 3000, cabin: 3000, humidity: 3000 };
+const STALE_MS_BY_CHANNEL: Partial<Record<Channel, number>> = { altitude: 3000, cabin: 3000, humidity: 3000, speed: 3000 };
 const GAUGE_CHANNELS: Record<GaugeId, Channel[]> = {
   INCLINOMETER: ['pitch', 'roll'],
   COMPASS: ['heading'],
   ALTIMETER: ['altitude'],
+  SPEED: ['speed'],
   ENGINE_TEMP: ['coolant'],
   AMBIENT_TEMP: ['ambient'],
   BATTERY: ['battery'],
@@ -79,7 +81,7 @@ const GAUGE_CHANNELS: Record<GaugeId, Channel[]> = {
 
 type Freshness = Record<GaugeId, boolean>;
 let fresh: Freshness = {
-  INCLINOMETER: false, COMPASS: false, ALTIMETER: false,
+  INCLINOMETER: false, COMPASS: false, ALTIMETER: false, SPEED: false,
   ENGINE_TEMP: false, AMBIENT_TEMP: false, BATTERY: false, CABIN_TEMP: false, HUMIDITY: false,
 };
 const listeners = new Set<() => void>();
