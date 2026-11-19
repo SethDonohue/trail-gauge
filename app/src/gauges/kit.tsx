@@ -19,8 +19,20 @@ export interface Face {
 
 export function makeFace(size: number, bold = true): Face {
   const font = matchFont({ fontFamily: FAMILY, fontSize: size, fontWeight: bold ? 'bold' : 'normal' });
+  // Advance widths (how far each letter moves the pen), not ink bounds: measureText gives the
+  // ink box, which is zero for a space and too narrow for every letter, so text came out wider
+  // than measured and centred off to one side.
   const widths: Record<string, number> = {};
-  for (const ch of GLYPHS) widths[ch] = font.measureText(ch).width;
+  const chars = [...GLYPHS];
+  let adv: number[] = [];
+  try {
+    adv = font.getGlyphWidths(font.getGlyphIDs(GLYPHS));
+  } catch {
+    adv = [];
+  }
+  chars.forEach((ch, i) => {
+    widths[ch] = adv.length === chars.length && Number.isFinite(adv[i]) ? adv[i] : font.measureText(ch).width;
+  });
   return { font, widths, avg: widths['0'], size };
 }
 

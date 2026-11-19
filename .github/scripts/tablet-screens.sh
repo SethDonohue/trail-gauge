@@ -21,7 +21,7 @@ launch() {
 tap() {
   local pattern=$1 xy
   for _ in $(seq 1 "${TAP_TRIES:-3}"); do
-    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    dump_out=$(adb shell uiautomator dump /sdcard/ui.xml 2>&1)
     xy=$(adb exec-out cat /sdcard/ui.xml | python3 -c '
 import html, re, sys
 pat = re.compile(sys.argv[1], re.I)
@@ -46,7 +46,7 @@ if hits:
     fi
     sleep 2
   done
-  [ -n "${QUIET:-}" ] || log "WARN: nothing matching /$pattern/ on screen"
+  [ -n "${QUIET:-}" ] || log "WARN: nothing matching /$pattern/ on screen (dump: ${dump_out:-ok})"
   return 1
 }
 back() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
@@ -66,6 +66,14 @@ double_tap_center() {
   local wh w h; wh=$(size); w=${wh%x*}; h=${wh#*x}
   adb shell "input tap $((w/4)) $((h/3)) & sleep 0.12; input tap $((w/4)) $((h/3))"
   sleep 3
+}
+# If the app is not in front (crashed or left), say so loudly, keep its errors, and relaunch.
+in_front() {
+  if ! adb shell dumpsys activity activities | grep -q "topResumedActivity.*$PKG"; then
+    log "APP NOT IN FRONT: relaunching (see logcat-errors.txt)"
+    adb logcat -d -s ReactNativeJS:E AndroidRuntime:E >> "$OUT/logcat-errors.txt" 2>&1 || true
+    launch
+  fi
 }
 open_menu() { tap 'More: settings, guides and tips'; }
 GAUGES=(tilt compass altitude speed coolant outside battery cabin humidity)
@@ -149,13 +157,16 @@ swipe_left; shot 16-phone-page-2 2
 swipe_left; shot 17-phone-page-3 2
 swipe_left; sleep 1
 all_single 40-phone-full
+in_front
 log "tilt gauge looks: tile (first on page 1) and full screen"
 for look in "One dial" "Horizon" "Bubble" "Two dials"; do
   slug=$(echo "$look" | tr 'A-Z ' 'a-z-')
   open_menu; tap '^All settings$'; tap_scroll "^$look\$"; back
+  in_front
   shot "50-phone-tilt-$slug-page" 2
   double_tap_center; shot "51-phone-tilt-$slug-full" 2; double_tap_center
 done
+in_front
 open_menu; tap '^Quick settings$'; tap '^On$'; back
 shot 18-phone-night-mode 3
 open_menu; tap '^All settings$'; shot 19-phone-settings 2
@@ -164,6 +175,7 @@ back
 adb shell wm size reset
 adb shell wm density reset
 
+adb logcat -d -s ReactNativeJS:E AndroidRuntime:E ActivityManager:W > "$OUT/logcat-errors.txt" 2>&1 || true
 log "crash check"
 if adb logcat -d -b crash | grep -q "$PKG"; then
   adb logcat -d -b crash > "$OUT/crash.txt"
