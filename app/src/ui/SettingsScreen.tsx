@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALERT_IDS, ALERT_LABEL, COOLANT_ALARM_MARGIN_C } from '../core/alerts';
 import { GAUGE_PRESETS, isReservedHue, wheelColorAt } from '../core/colors';
 import { hubFaults, vehicleBusLabel } from '../core/faults';
+import { TILT_STYLE_HINT, TILT_STYLES } from '../core/tilt';
 import { altUnit, fmtSpeed, speedUnitFor, speedUnitLabel } from '../core/format';
 import { northRefSummary } from '../core/heading';
 import { alertMonitor } from '../engine/alertMonitor';
@@ -134,6 +135,10 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
           <Row label="Units">
             <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v, speedUnit: speedUnitFor(v) })}
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
+          </Row>
+          <Row label="Tilt gauge look" hint={TILT_STYLE_HINT}>
+            <Segmented label="Tilt gauge look" value={s.tiltStyle} onChange={v => updateSettings({ tiltStyle: v })}
+              options={TILT_STYLES} />
           </Row>
           <Row label="Speed unit" hint="Also switches with one tap on the Speed gauge.">
             <Segmented label="Speed unit" value={s.speedUnit} onChange={v => updateSettings({ speedUnit: v })}

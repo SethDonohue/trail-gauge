@@ -20,18 +20,10 @@
 
 ## Next
 
-- [ ] **Tilt gauge: three looks for roll and pitch, chosen in Settings > Display.** Research notes
-  and proposed looks are below. Each look must show the same information at tile and full-screen
-  size, keep the number, name amber/red in words, and meet the contrast tests (see
-  `docs/` accessibility notes). Use our own generic 4x4 artwork, not copies of any product's art.
-  1. **Silhouettes (today's look, upgraded):** rear and side vehicle that tilt over a ground line,
-     plus a tick scale (every 10 degrees, to 40) with a pointer on it and red ticks past the warning.
-  2. **Horizon fill:** each axis is a round dial filled like a level: ground colour below a tilting
-     line, fill bands that shift green, amber, red with angle, a small vehicle in the middle, number on top.
-  3. **Bubble:** a ball in a curved tube for roll and one for pitch (or one two-axis bullseye), with
-     tick marks and the number beside it; the ball moves toward the high side, like a real bubble.
-  Open questions: one dial with both axes or two side by side; which look is the default; whether
-  tapping the gauge should cycle the look (it must not clash with double-tap to enlarge).
+- [ ] **Check the Tilt gauge looks on a phone** (Settings > Display > Tilt gauge look): Two dials
+  (default), One dial, Horizon, Bubble. Check that each moves the right way: right side down tilts
+  the rear view clockwise; nose up lifts the side view's nose; the bubble moves to the high side.
+- [ ] Review the CI screenshots after each layout change (`ci-screenshots` branch).
 
 ## Later
 
@@ -39,6 +31,11 @@
 - [ ] Hub hardware and firmware (spec Rev B).
 
 ## Done
+
+- [x] Tilt gauge looks (0.5.0): Two dials (default), One dial with both axes, Horizon, Bubble.
+  Same information in each; scale ticks red past the warning angle. Research behind them: Jalopnik's
+  inclinometer roundup and SKYbrary on aircraft attitude displays (moving-vehicle vs moving-horizon).
+- [x] Speed gauge (GPS) with one-tap mph/km/h (0.4.1); compass fix for a phone stood upright (0.4.2).
 
 - [x] Rebuilt 0.3.0's features as 0.4.0 (setup guide, tips, pages, alerts and mute, quick settings,
       night mode, cabin/humidity/fog, outside correction, compass calibration, frame V3, and more).

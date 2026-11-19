@@ -106,7 +106,8 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
     const tTemplate = '888°';
     switch (id) {
       case 'INCLINOMETER':
-        body = <Inclinometer {...common} pitchWarnDeg={s.pitchWarnDeg} rollWarnDeg={s.rollWarnDeg} />;
+        body = <Inclinometer {...common} pitchWarnDeg={s.pitchWarnDeg} rollWarnDeg={s.rollWarnDeg}
+          look={s.tiltStyle} />;
         break;
       case 'COMPASS':
         body = <Compass {...common} disturbed={disturbed} />;
@@ -120,7 +121,7 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
         const note = fresh ? null : s.motionSource === 'demo' || statusStore.get().locationGranted !== false
           ? 'WAITING FOR GPS' : 'LOCATION OFF';
         body = (
-          <ArcGauge key={arcKey} {...common} label="Speed (GPS)" unit={speedUnitLabel(speedUnit)} value={live.speed}
+          <ArcGauge key={arcKey} {...common} label="Speed" unit={speedUnitLabel(speedUnit)} value={live.speed}
             min={0} max={maxMps} minLabel="0" maxLabel={speedUnit === 'mph' ? '100' : '160'}
             level={noLevel} format={speed} note={note} valueTemplate="888"
             levelWords={['', '']} statusTemplate="WAITING FOR GPS" />

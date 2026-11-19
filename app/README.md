@@ -59,6 +59,19 @@ split-screen beside a mapping app (Gaia GPS, onX Offroad, and so on).
 - Layouts are checked on an emulated tablet in CI (workflow *Tablet screenshots*); the images are
   on the `ci-screenshots` branch.
 
+## Tilt gauge looks
+
+Settings > Display > *Tilt gauge look*:
+- **Two dials** (default): roll and pitch side by side. Each vehicle tilts against a scale (ticks
+  every 5 degrees to 40, red from your warning angle) and a pointer on its roof reads it off.
+- **One dial**: both axes on one round gauge. Roll above the centre, pitch below; the roll line's
+  ends read off the scales at both sides.
+- **Horizon**: the vehicle stays still and the ground tilts, as seen from the driver's seat.
+- **Bubble**: a ball in a curved tube moves to the high side, like a spirit level.
+
+Every look shows both numbers, names CAUTION or DANGER in words, and works at any tile size. The
+gauge's taps are the same as every other gauge (double-tap to enlarge).
+
 ## Speed gauge
 
 GPS ground speed (the receiver's own Doppler speed, so it is not derived from position jumps).

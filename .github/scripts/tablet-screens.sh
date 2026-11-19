@@ -26,13 +26,18 @@ tap() {
 import html, re, sys
 pat = re.compile(sys.argv[1], re.I)
 xml = sys.stdin.read()
+hits = []
 for m in re.finditer(r"<node [^>]*>", xml):
     n = m.group(0)
     a = {k: html.unescape(v) for k, v in re.findall(r"([\w-]+)=\"([^\"]*)\"", n)}
-    if pat.search(a.get("content-desc", "")) or pat.search(a.get("text", "")):
-        x1, y1, x2, y2 = map(int, re.findall(r"\d+", a["bounds"]))
-        print((x1 + x2) // 2, (y1 + y2) // 2)
-        break
+    # A control's accessibility label wins over plain text: a row's label text is not tappable.
+    if pat.search(a.get("content-desc", "")):
+        hits.insert(0, a["bounds"]); break
+    if pat.search(a.get("text", "")):
+        hits.append(a["bounds"])
+if hits:
+    x1, y1, x2, y2 = map(int, re.findall(r"\d+", hits[0]))
+    print((x1 + x2) // 2, (y1 + y2) // 2)
 ' "$pattern")
     if [ -n "$xy" ]; then
       adb shell input tap $xy
@@ -41,7 +46,7 @@ for m in re.finditer(r"<node [^>]*>", xml):
     fi
     sleep 2
   done
-  log "WARN: nothing matching /$pattern/ on screen"
+  [ -n "${QUIET:-}" ] || log "WARN: nothing matching /$pattern/ on screen"
   return 1
 }
 back() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
@@ -50,7 +55,7 @@ tap_scroll() {
   local wh w h
   wh=$(size); w=${wh%x*}; h=${wh#*x}
   for _ in 1 2 3 4 5 6 7 8; do
-    TAP_TRIES=1 tap "$1" 2>/dev/null && return 0
+    QUIET=1 TAP_TRIES=1 tap "$1" && return 0
     adb shell input swipe $((w/2)) $((h*4/5)) $((w/2)) $((h/5)) 400; sleep 1
   done
   log "WARN: /$1/ not found after scrolling"; return 1
@@ -144,6 +149,13 @@ swipe_left; shot 16-phone-page-2 2
 swipe_left; shot 17-phone-page-3 2
 swipe_left; sleep 1
 all_single 40-phone-full
+log "tilt gauge looks: tile (first on page 1) and full screen"
+for look in "One dial" "Horizon" "Bubble" "Two dials"; do
+  slug=$(echo "$look" | tr 'A-Z ' 'a-z-')
+  open_menu; tap '^All settings$'; tap_scroll "^$look\$"; back
+  shot "50-phone-tilt-$slug-page" 2
+  double_tap_center; shot "51-phone-tilt-$slug-full" 2; double_tap_center
+done
 open_menu; tap '^Quick settings$'; tap '^On$'; back
 shot 18-phone-night-mode 3
 open_menu; tap '^All settings$'; shot 19-phone-settings 2

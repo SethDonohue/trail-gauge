@@ -8,6 +8,7 @@ import type { AlertId } from '../core/alerts';
 import { ALERT_IDS } from '../core/alerts';
 import type { DeclinationMode, NorthRef } from '../core/heading';
 import type { NightMode } from '../core/night';
+import { DEFAULT_TILT_STYLE, TILT_STYLES, type TiltStyle } from '../core/tilt';
 import type { OutsideMemory } from '../core/outside';
 import { DEFAULT_GAUGE_COLOR, isHexColor } from '../core/colors';
 import { GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
@@ -42,6 +43,7 @@ export interface Settings {
   lockViewWhileMoving: boolean; // above 8 km/h, double-tap and swipes do nothing
   viewLocked: boolean; // locked by hand from quick settings
   gaugeColor: string;
+  tiltStyle: TiltStyle; // the Tilt gauge's look
   nightMode: NightMode;
   nightDimPct: number;
   // Alerts
@@ -95,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lockViewWhileMoving: true,
   viewLocked: false,
   gaugeColor: DEFAULT_GAUGE_COLOR,
+  tiltStyle: DEFAULT_TILT_STYLE,
   nightMode: 'auto',
   nightDimPct: 40,
   muted: false,
@@ -152,6 +155,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<Setting
     speedUnit: v => oneOf(v, ['mph', 'kmh']),
     groupGauges: v => Array.isArray(v) && v.length === 3 && v.every(isGauge),
     orientation: v => oneOf(v, ['landscape', 'portrait', 'auto']),
+    tiltStyle: v => TILT_STYLES.some(t => t.value === v),
     gaugeColor: v => typeof v === 'string' && isHexColor(v),
     nightMode: v => oneOf(v, ['auto', 'on', 'off']),
     nightDimPct: v => num(v, 0, 80),

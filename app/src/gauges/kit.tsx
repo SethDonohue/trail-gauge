@@ -49,9 +49,12 @@ export function fitSize(template: string, maxW: number, preferred: number, bold 
 export function fitLines(text: string, maxW: number, preferred: number, maxLines = 2, bold = false, min = 9): {
   lines: string[]; face: Face;
 } {
+  // Decide on wrapping from the size the text really needs, before the readability floor: a
+  // floored single line would run past maxW, while two lines can stay inside it.
   const one = fitSize(text, maxW, preferred, bold, min);
+  const needed = fitSize(text, maxW, preferred, bold, 0);
   const words = text.split(' ');
-  if (one >= preferred * 0.8 || words.length < 2 || maxLines < 2) return { lines: [text], face: faceFor(one, bold) };
+  if (needed >= preferred * 0.8 || words.length < 2 || maxLines < 2) return { lines: [text], face: faceFor(one, bold) };
   // Best two-line split: the one whose longer line is shortest.
   const ref = faceFor(100, bold);
   let best = { lines: [text], longest: Infinity };

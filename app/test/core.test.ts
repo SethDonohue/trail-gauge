@@ -10,6 +10,7 @@ import { EmaFilter, HeadingFilter } from '../src/core/filters.ts';
 import {
   attitude, defaultMount, magneticHeading, mountFromUp, refreshAutoMount, upFromDeviceMotion, type Vec3,
 } from '../src/core/orientation.ts';
+import { bubbleAngleDeg, horizonRotationDeg, axisLevel, tiltTicks, vehicleRotationDeg, DEFAULT_TILT_STYLE, TILT_STYLES } from '../src/core/tilt.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
 } from '../src/core/altitude.ts';
@@ -458,4 +459,32 @@ test('compass keeps working when a phone that started flat is stood upright', ()
   // A phone that is fine where it is keeps its mount (no needless jumps).
   const flat = defaultMount([0, 0, 1]);
   assert.equal(refreshAutoMount(flat, [0, 0.2, 0.98]), flat);
+});
+
+test('tilt looks: levels, directions and scale', () => {
+  assert.equal(axisLevel(0, 30), 0);
+  assert.equal(axisLevel(-30, 30), 1);
+  assert.equal(axisLevel(39.9, 30), 1);
+  assert.equal(axisLevel(-40, 30), 2);
+  assert.equal(axisLevel(NaN, 30), 0);
+  // Right side down (positive roll) turns the rear view clockwise; nose up turns the side view
+  // (nose right) anticlockwise. The horizon turns the other way.
+  assert.ok(vehicleRotationDeg('roll', 10) > 0);
+  assert.ok(vehicleRotationDeg('pitch', 10) < 0);
+  assert.equal(horizonRotationDeg('roll', 10), -10);
+  assert.equal(horizonRotationDeg('pitch', 10), 10);
+  // The bubble goes to the high side: left when the right side is down, toward the nose (right)
+  // when the nose is up. -90 is the top of the tube; smaller angles are further left.
+  assert.ok(bubbleAngleDeg('roll', 10) < -90);
+  assert.ok(bubbleAngleDeg('pitch', 10) > -90);
+  assert.equal(bubbleAngleDeg('roll', 0), -90);
+  assert.equal(bubbleAngleDeg('roll', 90), -135); // stops at the end of the tube
+  // Ticks every 5 degrees to 40, majors every 10, red from the warning angle.
+  const t = tiltTicks(25);
+  assert.equal(t.length, 17);
+  assert.equal(t.filter(x => x.major).length, 9);
+  assert.deepEqual(t.filter(x => x.red).map(x => x.deg), [-40, -35, -30, -25, 25, 30, 35, 40]);
+  // Two dials side by side is the default, and there is a combined dial among at least 3 looks.
+  assert.equal(DEFAULT_TILT_STYLE, 'vehicles');
+  assert.ok(TILT_STYLES.length >= 3 && TILT_STYLES.some(s => s.value === 'dial'));
 });
