@@ -133,7 +133,7 @@ export interface Status {
   speedMps: number | null;
   gpsCourseDeg: number | null; // direction of travel from GPS, true north (meaningful only when moving)
   gpsCourseAtMs: number;
-  headingSource: 'gps' | 'held' | 'compass' | null; // what the compass shows now
+  headingSource: 'gps' | 'gyro' | 'held' | 'compass' | null; // what the compass shows now
   gpsAltitudeM: number | null;
   gpsVerticalAccM: number | null;
   pressureHpa: number | null;

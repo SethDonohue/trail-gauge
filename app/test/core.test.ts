@@ -11,6 +11,7 @@ import {
   attitude, defaultMount, magneticHeading, mountFromUp, refreshAutoMount, upFromDeviceMotion, type Vec3,
 } from '../src/core/orientation.ts';
 import { chooseHeadingSource, courseToShown, movingForCourse } from '../src/core/heading.ts';
+import { GyroBridge, yawRateDegPerS } from '../src/core/gyroHeading.ts';
 import { bubbleAngleDeg, horizonRotationDeg, axisLevel, tiltTicks, vehicleRotationDeg, DEFAULT_TILT_STYLE, TILT_STYLES } from '../src/core/tilt.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
@@ -516,4 +517,46 @@ test('compass source: GPS course while moving, magnets cannot steer it', () => {
   assert.deepEqual(courseToShown(90, hs), { deg: 90, isTrue: true });
   assert.deepEqual(courseToShown(10, { ...hs, northRef: 'magnetic' }), { deg: 355, isTrue: false });
   assert.deepEqual(courseToShown(10, { ...hs, northRef: 'magnetic', learnedDeclinationDeg: null }), { deg: 10, isTrue: true });
+});
+
+test('gyroscope bridge: turns the last GPS direction while crawling, unaffected by magnets', () => {
+  const r = Math.PI / 180;
+  // Phone flat, screen up (up = +z). Turning left (anticlockwise seen from above) is positive
+  // rotation about +z, so the heading goes down.
+  near(yawRateDegPerS([0, 0, 10 * r], [0, 0, 1]), -10, 1e-9);
+  // Phone upright in a dash mount (portrait: up = +y; landscape: up = +x): same turn, same answer.
+  near(yawRateDegPerS([0, 10 * r, 0], [0, 1, 0]), -10, 1e-9);
+  near(yawRateDegPerS([-10 * r, 0, 0], [-1, 0, 0]), -10, 1e-9);
+  // Tilted 30 degrees back: only the part about up counts.
+  const up: Vec3 = [0, Math.sin(Math.PI / 3), Math.cos(Math.PI / 3)];
+  near(yawRateDegPerS([0, 10 * r * up[1], 10 * r * up[2]], up), -10, 1e-9);
+
+  const b = new GyroBridge();
+  b.step(5, 1);
+  assert.equal(b.value, null); // nothing until GPS gives a direction
+  b.anchor(350);
+  for (let i = 0; i < 30; i++) b.step(3, 0.5); // a 45-degree right turn over 15 s
+  near(b.value!, 35, 1e-9);
+  b.anchor(90); // back at speed: GPS resets it
+  near(b.value!, 90, 1e-9);
+
+  // A gyroscope reading 0.2 deg/s at rest: learned while stopped, then cancelled.
+  const d = new GyroBridge();
+  for (let i = 0; i < 1200; i++) d.learnBias(0.2, 0.1); // 2 minutes stopped
+  near(d.biasDegS, 0.2, 0.005);
+  d.anchor(0);
+  for (let i = 0; i < 600; i++) d.step(0.2, 0.1); // a minute more at rest
+  assert.ok(Math.min(d.value!, 360 - d.value!) < 0.2, `drift ${d.value}`);
+  // Someone turning the phone by hand while stopped does not count as offset.
+  d.learnBias(30, 0.1);
+  near(d.biasDegS, 0.2, 0.005);
+
+  // Which source: GPS at speed; the gyroscope bridge when slow; held when there is no gyroscope.
+  const base = { moving: false, courseFresh: false, haveLastCourse: true, gyroAvailable: true, magAvailable: true, magDisturbed: false };
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps' }), 'gyro');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps', gyroAvailable: false }), 'held');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps', moving: true, courseFresh: true }), 'gps');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'auto' }), 'compass');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'auto', magDisturbed: true }), 'gyro');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps', haveLastCourse: false }), null);
 });

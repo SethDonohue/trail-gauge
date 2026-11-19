@@ -1,4 +1,5 @@
-import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
+import { Barometer, DeviceMotion, Gyroscope, Magnetometer } from 'expo-sensors';
+import { yawRateDegPerS } from '../core/gyroHeading';
 import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
 import { EmaFilter } from '../core/filters';
 import {
@@ -19,6 +20,7 @@ export class PhoneSource {
   private up: Vec3 | null = null;
   private upAvg: Vec3 | null = null; // slow average used when zeroing
   private mag: Vec3 | null = null;
+  private gyro: Vec3 | null = null; // rad/s, device frame
   private autoMount: Mount | null = null;
   private lastMotionMs = 0;
   private lastBaroMs = 0;
@@ -54,6 +56,10 @@ export class PhoneSource {
         }
         this.mag = applyMagCal(raw, settingsStore.get().magCal);
       }));
+    }
+    if (await Gyroscope.isAvailableAsync()) {
+      Gyroscope.setUpdateInterval(20);
+      this.subs.push(Gyroscope.addListener(g => { this.gyro = [g.x, g.y, g.z]; }));
     }
     this.hasBaro = await Barometer.isAvailableAsync();
     statusStore.set({ baroAvailable: this.hasBaro });
@@ -145,7 +151,8 @@ export class PhoneSource {
     put('roll', this.rollF.update(att.rollDeg, dt));
 
     const field = this.mag ? norm(this.mag) : null;
-    this.heading.update(this.mag ? magneticHeading(up, this.mag, mount) : null, now);
+    this.heading.update(this.mag ? magneticHeading(up, this.mag, mount) : null, now,
+      this.gyro ? yawRateDegPerS(this.gyro, up) : null);
     if (now - this.lastDiagMs > 250) {
       this.lastDiagMs = now;
       statusStore.set({

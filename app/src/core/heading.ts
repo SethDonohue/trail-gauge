@@ -44,7 +44,7 @@ export function northRefSummary(s: HeadingSettings): string {
 // at walking pace and below the course is noise. Navigation apps use course while moving.
 
 export type HeadingSourcePref = 'auto' | 'gps' | 'magnetic';
-export type HeadingSource = 'gps' | 'held' | 'compass' | null;
+export type HeadingSource = 'gps' | 'gyro' | 'held' | 'compass' | null;
 
 export const COURSE_START_MPS = 1.8; // about 4 mph: course becomes trustworthy
 export const COURSE_STOP_MPS = 1.2; // about 2.7 mph: back below this, stop using it
@@ -57,19 +57,21 @@ export function movingForCourse(speedMps: number | null, wasMoving: boolean): bo
 }
 
 // Which source the compass shows now.
-// - gps: GPS course while moving; when stopped, the last course is held (or nothing yet).
+// - gps: GPS course while moving; slower, the last course turned by the gyroscope (or just held
+//   when there is no gyroscope); nothing until the first course.
 // - magnetic: the magnetometer only.
-// - auto: GPS course while moving; when stopped, the magnetometer unless its field looks wrong,
-//   then the last GPS course.
+// - auto: GPS course while moving; slower, the magnetometer unless its field looks wrong, then the
+//   gyroscope bridge or the held course.
 export function chooseHeadingSource(p: {
   pref: HeadingSourcePref; moving: boolean; courseFresh: boolean; haveLastCourse: boolean;
-  magAvailable: boolean; magDisturbed: boolean;
+  gyroAvailable: boolean; magAvailable: boolean; magDisturbed: boolean;
 }): HeadingSource {
   if (p.pref !== 'magnetic' && p.moving && p.courseFresh) return 'gps';
-  if (p.pref === 'gps') return p.haveLastCourse ? 'held' : null;
+  const bridge: HeadingSource = p.haveLastCourse ? (p.gyroAvailable ? 'gyro' : 'held') : null;
+  if (p.pref === 'gps') return bridge;
   if (p.pref === 'magnetic') return p.magAvailable ? 'compass' : null;
   if (p.magAvailable && !p.magDisturbed) return 'compass';
-  if (p.haveLastCourse) return 'held';
+  if (bridge) return bridge;
   return p.magAvailable ? 'compass' : null;
 }
 

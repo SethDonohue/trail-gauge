@@ -137,7 +137,7 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
           </Row>
           <Row label="Compass source"
-            hint={'GPS uses your direction of travel: magnets in a phone mount cannot throw it off, but it needs you moving (over about 4 mph); stopped, it keeps the last direction (LAST GPS). Reversing shows the way you are moving. Compass uses the magnetometer only. Auto uses GPS while moving and the magnetometer when stopped. With a magnetic mount, choose GPS.' + (st.headingSource ? ` Now: ${st.headingSource === 'gps' ? 'GPS' : st.headingSource === 'held' ? 'last GPS direction' : 'magnetometer'}.` : '')}>
+            hint={'GPS uses your direction of travel: magnets in a phone mount cannot throw it off, but it needs you moving (over about 4 mph). Slower than that, the phone's gyroscope turns the last GPS direction as you turn (GYRO); it drifts a little, and each stretch at speed corrects it. Reversing shows the way you are moving. Compass uses the magnetometer only. Auto uses GPS while moving and the magnetometer when stopped. With a magnetic mount, choose GPS.' + (st.headingSource ? ` Now: ${st.headingSource === 'gps' ? 'GPS' : st.headingSource === 'gyro' ? 'gyroscope from the last GPS direction' : st.headingSource === 'held' ? 'last GPS direction' : 'magnetometer'}.` : '')}>
             <Segmented label="Compass source" value={s.headingSource} onChange={v => updateSettings({ headingSource: v })}
               options={[{ value: 'auto', label: 'Auto' }, { value: 'gps', label: 'GPS' }, { value: 'magnetic', label: 'Compass' }]} />
           </Row>
