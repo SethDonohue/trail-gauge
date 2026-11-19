@@ -73,6 +73,16 @@ export function upFromDeviceMotion(
 
 export const defaultMount = (upNow: Vec3) => mountFromUp(snapAxis(upNow));
 
+// The automatic mount (before "Zero level") is picked from how the phone first sat. If the phone is
+// later stood up so that mount's forward axis points toward the sky or ground, heading and pitch
+// become unreliable (a tilt-compensated compass cannot read the direction of a vertical axis).
+// Then pick a new one, the way phone compass apps do: the back of the phone when it is upright,
+// the top edge when it lies flat. Both give the same direction at the moment of the change.
+export const AUTO_MOUNT_RESNAP_DOT = 0.8; // forward axis within ~37 degrees of vertical
+export function refreshAutoMount(auto: Mount, upNow: Vec3): Mount {
+  return Math.abs(dot(auto.fwd, normalize(upNow))) > AUTO_MOUNT_RESNAP_DOT ? defaultMount(upNow) : auto;
+}
+
 // Pitch: nose up positive. Roll: right side down positive.
 export function attitude(upNow: Vec3, m: Mount): { pitchDeg: number; rollDeg: number } {
   const u = normalize(upNow);

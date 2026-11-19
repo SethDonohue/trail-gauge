@@ -2,7 +2,7 @@ import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
 import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
 import { EmaFilter, HeadingFilter } from '../core/filters';
 import {
-  attitude, defaultMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize,
+  attitude, defaultMount, refreshAutoMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize,
   type Mount, type Vec3,
 } from '../core/orientation';
 import { resolveHeading } from '../core/heading';
@@ -133,7 +133,8 @@ export class PhoneSource {
       ? normalize([0, 1, 2].map(i => this.upAvg![i] + k * (up[i] - this.upAvg![i])) as Vec3)
       : up;
 
-    if (!this.autoMount) this.autoMount = defaultMount(up);
+    // Not zeroed yet: keep the automatic mount usable when the phone is moved (see refreshAutoMount).
+    this.autoMount = this.autoMount ? refreshAutoMount(this.autoMount, up) : defaultMount(up);
     const mount = s.mount ?? this.autoMount;
 
     const tau = TILT_SMOOTHING_TAU_S[s.tiltSmoothing];

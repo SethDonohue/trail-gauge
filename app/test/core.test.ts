@@ -8,7 +8,7 @@ import {
 } from '../src/core/frame.ts';
 import { EmaFilter, HeadingFilter } from '../src/core/filters.ts';
 import {
-  attitude, defaultMount, magneticHeading, mountFromUp, upFromDeviceMotion, type Vec3,
+  attitude, defaultMount, magneticHeading, mountFromUp, refreshAutoMount, upFromDeviceMotion, type Vec3,
 } from '../src/core/orientation.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
@@ -433,4 +433,29 @@ test('contrast: speed unit button text', () => {
   assert.ok(contrast(C.ink, C.control) >= 4.5, 'active unit');
   assert.ok(contrast(C.quiet, C.panel) >= 4.5, 'inactive unit');
   assert.ok(contrast(C.control, C.panel) >= 3, 'button outline');
+});
+
+test('compass keeps working when a phone that started flat is stood upright', () => {
+  // Top edge points north. Tilting the top edge up by t degrees about the east axis gives these
+  // device-frame vectors; the field is 30 uT north plus 40 uT down.
+  const pose = (tDeg: number) => {
+    const t = (tDeg * Math.PI) / 180;
+    const up: Vec3 = [0, Math.sin(t), Math.cos(t)];
+    const north: Vec3 = [0, Math.cos(t), -Math.sin(t)];
+    const mag = [0, 1, 2].map(i => 30 * north[i] - 40 * up[i]) as Vec3;
+    return { up, mag };
+  };
+  let mount = defaultMount(pose(0).up); // phone lying flat when the app started
+  for (const t of [0, 20, 40, 60, 75, 90]) {
+    const { up, mag } = pose(t);
+    mount = refreshAutoMount(mount, up);
+    const h = magneticHeading(up, mag, mount);
+    assert.ok(h !== null, `heading exists at ${t} deg`);
+    assert.ok(Math.min(h!, 360 - h!) < 0.5, `still north at ${t} deg, got ${h}`);
+  }
+  // Without the refresh the heading is lost once the phone is upright.
+  assert.equal(magneticHeading(pose(90).up, pose(90).mag, defaultMount(pose(0).up)), null);
+  // A phone that is fine where it is keeps its mount (no needless jumps).
+  const flat = defaultMount([0, 0, 1]);
+  assert.equal(refreshAutoMount(flat, [0, 0.2, 0.98]), flat);
 });
