@@ -136,6 +136,11 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
             <Segmented label="Units" value={s.units} onChange={v => updateSettings({ units: v, speedUnit: speedUnitFor(v) })}
               options={[{ value: 'imperial', label: 'ft, °F' }, { value: 'metric', label: 'm, °C' }]} />
           </Row>
+          <Row label="Compass source"
+            hint={'GPS uses your direction of travel: magnets in a phone mount cannot throw it off, but it needs you moving (over about 4 mph); stopped, it keeps the last direction (LAST GPS). Reversing shows the way you are moving. Compass uses the magnetometer only. Auto uses GPS while moving and the magnetometer when stopped. With a magnetic mount, choose GPS.' + (st.headingSource ? ` Now: ${st.headingSource === 'gps' ? 'GPS' : st.headingSource === 'held' ? 'last GPS direction' : 'magnetometer'}.` : '')}>
+            <Segmented label="Compass source" value={s.headingSource} onChange={v => updateSettings({ headingSource: v })}
+              options={[{ value: 'auto', label: 'Auto' }, { value: 'gps', label: 'GPS' }, { value: 'magnetic', label: 'Compass' }]} />
+          </Row>
           <Row label="Tilt gauge look" hint={TILT_STYLE_HINT}>
             <Segmented label="Tilt gauge look" value={s.tiltStyle} onChange={v => updateSettings({ tiltStyle: v })}
               options={TILT_STYLES} />

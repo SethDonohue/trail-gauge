@@ -24,6 +24,7 @@ export class LocationService {
           const c = loc.coords;
           statusStore.set({
             speedMps: c.speed !== null && c.speed >= 0 ? c.speed : null,
+            ...(c.heading !== null && c.heading >= 0 ? { gpsCourseDeg: c.heading % 360, gpsCourseAtMs: Date.now() } : {}),
             gpsAltitudeM: c.altitude,
             gpsVerticalAccM: c.altitudeAccuracy,
             latitude: c.latitude,

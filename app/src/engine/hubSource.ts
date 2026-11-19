@@ -5,7 +5,7 @@ import {
 import {
   base64ToBytes, bytesToBase64, controlFrame, CONTROL, parseFrame, STATUS, STATUS2,
 } from '../core/frame';
-import { resolveHeading } from '../core/heading';
+import { HeadingSelector } from './headingSelector';
 import { live, put, statusStore } from './live';
 import { outsideProcessor } from './outsideProcessor';
 import { settingsStore, updateSettings } from './settings';
@@ -43,6 +43,7 @@ export async function requestBluetoothPermission(): Promise<boolean> {
 // Connects to the hub, streams telemetry frames (V2 or V3), and reconnects whenever the link drops.
 export class HubSource {
   private running = false;
+  private readonly heading = new HeadingSelector();
   private device: Device | null = null;
   private subs: Subscription[] = [];
   private retry: ReturnType<typeof setTimeout> | null = null;
@@ -154,14 +155,7 @@ export class HubSource {
     if (this.opts.motion) {
       put('pitch', f.pitchDeg);
       put('roll', f.rollDeg);
-      if (f.headingMagDeg !== null) {
-        const h = resolveHeading(f.headingMagDeg, {
-          northRef: s.northRef, declinationMode: s.declinationMode, learnedDeclinationDeg: s.declinationDeg,
-          manualDeclinationDeg: s.manualDeclinationDeg, headingOffsetDeg: s.headingOffsetDeg,
-        });
-        live.headingTrue.value = h.isTrue;
-        put('heading', h.deg);
-      }
+      this.heading.update(f.headingMagDeg);
       put('altitude', f.altitudeM !== null ? f.altitudeM + s.altitudeOffsetM : null);
     }
     if (this.opts.engine) {

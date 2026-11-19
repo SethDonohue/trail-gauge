@@ -1,11 +1,11 @@
 import { Barometer, DeviceMotion, Magnetometer } from 'expo-sensors';
 import { gpsAltitudeUsable, pressureToAltitudeM, resolveAltitudeSource, type AltitudeSource } from '../core/altitude';
-import { EmaFilter, HeadingFilter } from '../core/filters';
+import { EmaFilter } from '../core/filters';
 import {
   attitude, defaultMount, refreshAutoMount, upFromDeviceMotion, magneticHeading, mountFromUp, norm, normalize,
   type Mount, type Vec3,
 } from '../core/orientation';
-import { resolveHeading } from '../core/heading';
+import { HeadingSelector } from './headingSelector';
 import { applyMagCal, MagCalibrator } from '../core/magcal';
 import { put, live, statusStore } from './live';
 import { settingsStore, TILT_SMOOTHING_TAU_S } from './settings';
@@ -31,7 +31,7 @@ export class PhoneSource {
 
   private readonly pitchF = new EmaFilter(0.15);
   private readonly rollF = new EmaFilter(0.15);
-  private readonly headingF = new HeadingFilter(0.4);
+  private readonly heading = new HeadingSelector();
   private readonly altF = new EmaFilter(0.5);
   private readonly gpsAltF = new EmaFilter(4); // GPS height is noisy: smooth harder
 
@@ -68,7 +68,7 @@ export class PhoneSource {
     this.subs = [];
     this.pitchF.reset();
     this.rollF.reset();
-    this.headingF.reset();
+    this.heading.reset();
     this.altF.reset();
     this.gpsAltF.reset();
     this.altSrc = null;
@@ -93,7 +93,7 @@ export class PhoneSource {
     const off = this.magCal?.finish() ?? null;
     this.magCal = null;
     statusStore.set({ magCalActive: false, magCalProgress: null });
-    if (off) this.headingF.reset();
+    if (off) this.heading.reset();
     return off;
   }
 
@@ -145,18 +145,7 @@ export class PhoneSource {
     put('roll', this.rollF.update(att.rollDeg, dt));
 
     const field = this.mag ? norm(this.mag) : null;
-    if (this.mag) {
-      const h = magneticHeading(up, this.mag, mount);
-      if (h !== null) {
-        const filtered = this.headingF.update(h, dt);
-        const r = resolveHeading(filtered, {
-          northRef: s.northRef, declinationMode: s.declinationMode, learnedDeclinationDeg: s.declinationDeg,
-          manualDeclinationDeg: s.manualDeclinationDeg, headingOffsetDeg: s.headingOffsetDeg,
-        });
-        live.headingTrue.value = r.isTrue;
-        put('heading', r.deg);
-      }
-    }
+    this.heading.update(this.mag ? magneticHeading(up, this.mag, mount) : null, now);
     if (now - this.lastDiagMs > 250) {
       this.lastDiagMs = now;
       statusStore.set({

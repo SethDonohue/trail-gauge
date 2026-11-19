@@ -22,8 +22,12 @@ function CardinalLetter({ letter, bearing, r, cx, cy, face, color }: {
 
 export function Compass(props: {
   w: number; h: number; compact: boolean; fresh: boolean; disturbed: boolean; accent: string;
+  source: 'gps' | 'held' | 'compass' | null;
+  note?: string | null; // e.g. waiting for a GPS direction; interference takes precedence
 }) {
-  const { w, h, compact, fresh, disturbed, accent } = props;
+  const { w, h, compact, fresh, accent, source } = props;
+  // Interference only matters when the magnetometer is what the dial shows.
+  const disturbed = props.disturbed && source !== 'gps' && source !== 'held';
   const side = Math.min(w, h);
   const faces = useFaces(side, { big: compact ? 0.17 : 0.13, mid: 0.08, small: 0.06 });
   const cx = w / 2;
@@ -64,10 +68,11 @@ export function Compass(props: {
   // Cardinal direction and which north: T (true) or M (magnetic).
   const subText = useDerivedValue(() => {
     if (!fresh) return '--';
-    const ref = live.headingTrue.value ? 'TRUE' : 'MAG';
+    // GPS: direction of travel. LAST GPS: held while stopped. Otherwise the magnetometer's north.
+    const ref = source === 'gps' ? 'GPS' : source === 'held' ? 'LAST GPS' : live.headingTrue.value ? 'TRUE' : 'MAG';
     return `${cardinal(live.heading.value)} · ${ref}`;
-  }, [fresh]);
-  const sub = faceFor(fitSize('NW · TRUE', r * 0.8, side * 0.065, false));
+  }, [fresh, source]);
+  const sub = faceFor(fitSize('NW · LAST GPS', r * 0.8, side * 0.065, false));
 
   const lr = r * 0.66; // letter radius
   const m = faces.mid;
@@ -88,6 +93,10 @@ export function Compass(props: {
       {disturbed ? (
         <FitText text="MAGNETIC INTERFERENCE" x={cx} y={cy + r * 0.52} maxW={r * 1.15} preferred={side * 0.06}
           color={C.warn} bold />
+      ) : null}
+      {!disturbed && props.note ? (
+        <FitText text={props.note} x={cx} y={cy + r * 0.52} maxW={r * 1.15} preferred={side * 0.06}
+          color={C.quiet} bold />
       ) : null}
     </Group>
   );

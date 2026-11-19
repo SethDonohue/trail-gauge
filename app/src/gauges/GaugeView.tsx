@@ -36,6 +36,7 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
   const fresh = useFresh(id);
   const s = settingsStore.use();
   const disturbed = statusStore.useSelect(st => st.magDisturbed);
+  const headingSrc = statusStore.useSelect(st => st.headingSource);
   const holding = statusStore.useSelect(st => st.outsideHolding);
   const disagree = statusStore.useSelect(st => st.outsideDisagree);
   const fog = statusStore.useSelect(st => st.alertLevels.fog ?? null);
@@ -110,7 +111,8 @@ export function GaugeView({ id, compact }: { id: GaugeId; compact: boolean }) {
           look={s.tiltStyle} />;
         break;
       case 'COMPASS':
-        body = <Compass {...common} disturbed={disturbed} />;
+        body = <Compass {...common} disturbed={disturbed} source={headingSrc}
+          note={!fresh && s.headingSource === 'gps' && s.motionSource !== 'demo' ? 'DRIVE TO GET A GPS HEADING' : null} />;
         break;
       case 'ALTIMETER':
         body = <Altimeter {...common} units={units} qnhHpa={s.qnhHpa} />;

@@ -131,6 +131,9 @@ export interface Status {
   hubStatusBits: number;
   locationGranted: boolean | null;
   speedMps: number | null;
+  gpsCourseDeg: number | null; // direction of travel from GPS, true north (meaningful only when moving)
+  gpsCourseAtMs: number;
+  headingSource: 'gps' | 'held' | 'compass' | null; // what the compass shows now
   gpsAltitudeM: number | null;
   gpsVerticalAccM: number | null;
   pressureHpa: number | null;
@@ -161,6 +164,9 @@ export const statusStore = createStore<Status>({
   hubStatusBits: 0,
   locationGranted: null,
   speedMps: null,
+  gpsCourseDeg: null,
+  gpsCourseAtMs: 0,
+  headingSource: null,
   gpsAltitudeM: null,
   gpsVerticalAccM: null,
   pressureHpa: null,

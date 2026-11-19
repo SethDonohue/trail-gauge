@@ -72,6 +72,18 @@ Settings > Display > *Tilt gauge look*:
 Every look shows both numbers, names CAUTION or DANGER in words, and works at any tile size. The
 gauge's taps are the same as every other gauge (double-tap to enlarge).
 
+## Compass source
+
+Settings > Display > *Compass source*:
+- **Auto** (default): GPS direction of travel while moving, the magnetometer when stopped (or the
+  last GPS direction if the magnetic field looks wrong).
+- **GPS**: direction of travel only. Unaffected by magnets in a phone mount. Needs about 4 mph;
+  when stopped it holds the last direction (the dial says LAST GPS). Reversing shows the direction
+  of motion, not where the nose points.
+- **Compass**: the magnetometer only.
+
+The dial says which is in use: `NW · GPS`, `NW · LAST GPS`, or `NW · TRUE` / `MAG` for the magnetometer.
+
 ## Speed gauge
 
 GPS ground speed (the receiver's own Doppler speed, so it is not derived from position jumps).

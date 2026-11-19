@@ -6,7 +6,7 @@ import type { Mount, Vec3 } from '../core/orientation';
 import { STD_QNH_HPA, type AltitudeSourcePref } from '../core/altitude';
 import type { AlertId } from '../core/alerts';
 import { ALERT_IDS } from '../core/alerts';
-import type { DeclinationMode, NorthRef } from '../core/heading';
+import type { DeclinationMode, HeadingSourcePref, NorthRef } from '../core/heading';
 import type { NightMode } from '../core/night';
 import { DEFAULT_TILT_STYLE, TILT_STYLES, type TiltStyle } from '../core/tilt';
 import type { OutsideMemory } from '../core/outside';
@@ -63,6 +63,7 @@ export interface Settings {
   gravitySign: 1 | -1; // diagnostic: flips the phone's gravity convention if tilt reads backwards
   magCal: Vec3 | null; // phone hard-iron offset, µT
   northRef: NorthRef;
+  headingSource: HeadingSourcePref; // compass from GPS course, the magnetometer, or both
   declinationMode: DeclinationMode;
   declinationDeg: number | null; // learned from GPS
   manualDeclinationDeg: number;
@@ -115,6 +116,7 @@ export const DEFAULT_SETTINGS: Settings = {
   gravitySign: 1,
   magCal: null,
   northRef: 'true',
+  headingSource: 'auto',
   declinationMode: 'gps',
   declinationDeg: null,
   manualDeclinationDeg: 0,
@@ -170,6 +172,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<Setting
     gravitySign: v => v === 1 || v === -1,
     magCal: v => v === null || vec3(v),
     northRef: v => oneOf(v, ['true', 'magnetic']),
+    headingSource: v => oneOf(v, ['auto', 'gps', 'magnetic']),
     declinationMode: v => oneOf(v, ['gps', 'manual']),
     declinationDeg: v => v === null || num(v, -60, 60),
     manualDeclinationDeg: v => num(v, -60, 60),

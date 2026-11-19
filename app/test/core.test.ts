@@ -10,6 +10,7 @@ import { EmaFilter, HeadingFilter } from '../src/core/filters.ts';
 import {
   attitude, defaultMount, magneticHeading, mountFromUp, refreshAutoMount, upFromDeviceMotion, type Vec3,
 } from '../src/core/orientation.ts';
+import { chooseHeadingSource, courseToShown, movingForCourse } from '../src/core/heading.ts';
 import { bubbleAngleDeg, horizonRotationDeg, axisLevel, tiltTicks, vehicleRotationDeg, DEFAULT_TILT_STYLE, TILT_STYLES } from '../src/core/tilt.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
@@ -487,4 +488,32 @@ test('tilt looks: levels, directions and scale', () => {
   // Two dials side by side is the default, and there is a combined dial among at least 3 looks.
   assert.equal(DEFAULT_TILT_STYLE, 'vehicles');
   assert.ok(TILT_STYLES.length >= 3 && TILT_STYLES.some(s => s.value === 'dial'));
+});
+
+test('compass source: GPS course while moving, magnets cannot steer it', () => {
+  const base = { moving: true, courseFresh: true, haveLastCourse: true, magAvailable: true, magDisturbed: false };
+  // Moving: GPS course in auto and gps; never in magnetic.
+  assert.equal(chooseHeadingSource({ ...base, pref: 'auto' }), 'gps');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps' }), 'gps');
+  assert.equal(chooseHeadingSource({ ...base, pref: 'magnetic' }), 'compass');
+  // Stopped: gps holds the last course; auto uses the magnetometer unless its field looks wrong.
+  const stopped = { ...base, moving: false };
+  assert.equal(chooseHeadingSource({ ...stopped, pref: 'gps' }), 'held');
+  assert.equal(chooseHeadingSource({ ...stopped, pref: 'auto' }), 'compass');
+  assert.equal(chooseHeadingSource({ ...stopped, pref: 'auto', magDisturbed: true }), 'held');
+  assert.equal(chooseHeadingSource({ ...stopped, pref: 'gps', haveLastCourse: false }), null);
+  // A stale course is not used even when moving.
+  assert.equal(chooseHeadingSource({ ...base, pref: 'gps', courseFresh: false }), 'held');
+  // Moving threshold has hysteresis: 4 mph to start, 2.7 mph to stop.
+  assert.equal(movingForCourse(1.5, false), false);
+  assert.equal(movingForCourse(1.9, false), true);
+  assert.equal(movingForCourse(1.5, true), true);
+  assert.equal(movingForCourse(1.0, true), false);
+  assert.equal(movingForCourse(null, true), false);
+  // Course is true north; shown magnetic only when asked and the declination is known. The mount
+  // trim never applies to the direction of travel.
+  const hs = { northRef: 'true' as const, declinationMode: 'gps' as const, learnedDeclinationDeg: 15, manualDeclinationDeg: 0, headingOffsetDeg: 7 };
+  assert.deepEqual(courseToShown(90, hs), { deg: 90, isTrue: true });
+  assert.deepEqual(courseToShown(10, { ...hs, northRef: 'magnetic' }), { deg: 355, isTrue: false });
+  assert.deepEqual(courseToShown(10, { ...hs, northRef: 'magnetic', learnedDeclinationDeg: null }), { deg: 10, isTrue: true });
 });
