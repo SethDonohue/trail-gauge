@@ -73,7 +73,7 @@ export const TIPS: readonly Tip[] = [
       'If the compass shows MAGNETIC INTERFERENCE, move the phone away from the source or change the mount.',
       'For interference that moves with the phone (a mount with metal parts), use Settings > Advanced > Compass calibration: drive a slow full circle in an open area, then tap Finish.',
       'The compass shows true north (T) once GPS has a fix, otherwise magnetic north (M).',
-      'Magnetic phone mount? Set Settings > Compass source to GPS. The compass then follows your direction of travel from GPS, which magnets cannot affect. It needs you moving (over about 4 mph). When you crawl slower or stop, the phone's gyroscope keeps turning the dial from the last GPS direction (it says GYRO); it can drift a few degrees over several minutes, and the next stretch over 4 mph corrects it. While reversing it shows the direction you are moving.',
+      'Magnetic phone mount? Set Settings > Compass source to GPS. The compass then follows your direction of travel from GPS, which magnets cannot affect. It needs you moving (over about 4 mph). When you crawl slower or stop, the phone’s gyroscope keeps turning the dial from the last GPS direction (it says GYRO); it can drift a few degrees over several minutes, and the next stretch over 4 mph corrects it. While reversing it shows the direction you are moving.',
       'Any phone compass is least accurate when the phone stands upright, and every phone drifts a little until it is calibrated. Do the calibration with the phone in its mount, and use Zero level once it is mounted.',
     ],
   },
