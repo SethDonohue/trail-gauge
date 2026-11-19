@@ -164,7 +164,8 @@ for look in "One dial" "Horizon" "Bubble" "Two dials"; do
   open_menu; tap '^All settings$'; tap_scroll "^$look\$"; back
   in_front
   shot "50-phone-tilt-$slug-page" 2
-  double_tap_center; shot "51-phone-tilt-$slug-full" 2; double_tap_center
+  # Two shots 3 s apart in demo mode: if the pictures move, the pair differs (checked in review).
+  double_tap_center; shot "51-phone-tilt-$slug-full" 2; shot "52-phone-tilt-$slug-full-later" 3; double_tap_center
 done
 in_front
 open_menu; tap '^Quick settings$'; tap '^On$'; back
