@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
 import { Circle, Group, Line, Path, Rect, Skia, vec, type SkPath } from '@shopify/react-native-skia';
 import { type SharedValue } from 'react-native-reanimated';
-import {
-  bubbleAngleDeg, horizonRotationDeg, vehicleRotationDeg, type TiltAxis, type TiltStyle,
-} from '../core/tilt';
+import { type TiltAxis, type TiltStyle } from '../core/tilt';
 import { live } from '../engine/live';
 import { C, faceFor, fitSize, LiveText } from './kit';
 import { pointerPath, rearPath, sidePath, TickArc, useSpin, useTiltState } from './tiltKit';
@@ -54,10 +52,7 @@ function VehiclePane(p: PaneProps) {
   const s = Math.min(f.side * 0.26, f.H / 2.3, p.w * 0.3);
   const cy = f.top + (f.H - 2.3 * s) / 2 + 1.75 * s; // scale numbers reach 1.75 s above the centre
   const tickFace = faceFor(fitSize('40', s * 0.32, s * 0.3, false));
-  const spin = useSpin(f.cx, cy, () => {
-    'worklet';
-    return vehicleRotationDeg(axis, v.value);
-  }, [axis], { scale: s });
+  const spin = useSpin(f.cx, cy, v, 'vehicle', axis, { scale: s });
   const pointer = useMemo(() => {
     const q = Skia.PathBuilder.Make();
     q.moveTo(0, -1.28); q.lineTo(-0.09, -1.1); q.lineTo(0.09, -1.1); q.close();
@@ -88,10 +83,7 @@ function HorizonPane(p: PaneProps) {
   const cy = f.top + f.H / 2;
   const ri = rr * 0.84; // window radius; ticks sit between the window and rr
   const clip = useMemo(() => Skia.PathBuilder.Make().addCircle(f.cx, cy, ri).build(), [f.cx, cy, ri]);
-  const spin = useSpin(f.cx, cy, () => {
-    'worklet';
-    return horizonRotationDeg(axis, v.value);
-  }, [axis]);
+  const spin = useSpin(f.cx, cy, v, 'horizon', axis);
   const markers = useMemo(() => {
     const m = Skia.PathBuilder.Make();
     const len = rr * 0.12;
@@ -140,10 +132,7 @@ function BubblePane(p: PaneProps) {
     () => Skia.PathBuilder.Make().addArc(Skia.XYWHRect(f.cx - R, apexY, 2 * R, 2 * R), -135, 90).build(),
     [f.cx, apexY, R],
   );
-  const spin = useSpin(f.cx, ccy, () => {
-    'worklet';
-    return bubbleAngleDeg(axis, v.value);
-  }, [axis]);
+  const spin = useSpin(f.cx, ccy, v, 'bubble', axis);
   const sv = Math.min(R * 0.1, 0.293 * R * 0.4);
   return (
     <Group>
@@ -177,18 +166,9 @@ function OneDial(props: {
   const labelFace = faceFor(fitSize('PITCH · DANGER', r * 1.0, r * 0.075, false));
   const tickFace = faceFor(fitSize('40', r * 0.12, r * 0.075, false));
   const sv = r * 0.13;
-  const rollSpin = useSpin(cx, cy, () => {
-    'worklet';
-    return vehicleRotationDeg('roll', live.roll.value);
-  }, []);
-  const rearSpin = useSpin(cx, cy - r * 0.56, () => {
-    'worklet';
-    return vehicleRotationDeg('roll', live.roll.value);
-  }, [], { scale: sv });
-  const sideSpin = useSpin(cx, cy + r * 0.56, () => {
-    'worklet';
-    return vehicleRotationDeg('pitch', live.pitch.value);
-  }, [], { scale: sv });
+  const rollSpin = useSpin(cx, cy, live.roll, 'vehicle', 'roll');
+  const rearSpin = useSpin(cx, cy - r * 0.56, live.roll, 'vehicle', 'roll', { scale: sv });
+  const sideSpin = useSpin(cx, cy + r * 0.56, live.pitch, 'vehicle', 'pitch', { scale: sv });
   const wings = useMemo(() => {
     const q = Skia.PathBuilder.Make();
     q.moveTo(-r * 0.78, 0); q.lineTo(-r * 0.5, 0);

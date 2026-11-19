@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import { fmtAngle } from '../core/format';
-import { axisLevel, tiltTicks } from '../core/tilt';
+import {
+  axisLevel, bubbleAngleDeg, horizonRotationDeg, tiltTicks, vehicleRotationDeg, type TiltAxis,
+} from '../core/tilt';
 import { C, LiveText, type Face } from './kit';
 
 const RAD = Math.PI / 180;
@@ -57,16 +59,24 @@ export function useTiltState(p: {
   return { color, textColor, text, labelText, labelColor };
 }
 
-// A rotation about (cx, cy) by a screen angle computed on the UI thread.
-export function useSpin(cx: number, cy: number, deg: () => number, deps: unknown[], extra: { scale?: number; dy?: number } = {}) {
+// A rotation about (cx, cy) that follows a live tilt value on the UI thread.
+// The shared value must be read directly inside useDerivedValue: Reanimated only re-runs it for
+// shared values it can see in its own closure, not ones read inside a helper function passed in.
+// (That was the 0.5.0/0.5.1 bug: arrows, horizons and bubbles drew once and never moved.)
+export type SpinKind = 'vehicle' | 'horizon' | 'bubble';
+export function useSpin(cx: number, cy: number, source: SharedValue<number>, kind: SpinKind, axis: TiltAxis,
+  extra: { scale?: number } = {}) {
+  const scale = extra.scale ?? 0;
   return useDerivedValue(() => {
+    const v = source.value;
+    const deg = kind === 'horizon' ? horizonRotationDeg(axis, v)
+      : kind === 'bubble' ? bubbleAngleDeg(axis, v) : vehicleRotationDeg(axis, v);
     const t: ({ translateX: number } | { translateY: number } | { rotate: number } | { scale: number })[] = [
-      { translateX: cx }, { translateY: cy }, { rotate: deg() * RAD },
+      { translateX: cx }, { translateY: cy }, { rotate: deg * RAD },
     ];
-    if (extra.dy) t.push({ translateY: extra.dy });
-    if (extra.scale) t.push({ scale: extra.scale });
+    if (scale) t.push({ scale });
     return t;
-  }, [cx, cy, extra.scale, extra.dy, ...deps]);
+  }, [cx, cy, kind, axis, scale]);
 }
 
 // Scale ticks every 5 degrees to 40 each way, centred on screen angle `centreDeg`, with tick d at
