@@ -30,7 +30,7 @@ hits = []
 for m in re.finditer(r"<node [^>]*>", xml):
     n = m.group(0)
     a = {k: html.unescape(v) for k, v in re.findall(r"([\w-]+)=\"([^\"]*)\"", n)}
-    # A control's accessibility label wins over plain text: a row's label text is not tappable.
+    # Accessibility labels win over plain text: the label text of a settings row is not tappable.
     if pat.search(a.get("content-desc", "")):
         hits.insert(0, a["bounds"]); break
     if pat.search(a.get("text", "")):
