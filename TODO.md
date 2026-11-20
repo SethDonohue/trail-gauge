@@ -25,6 +25,21 @@
   the rear view clockwise; nose up lifts the side view's nose; the bubble moves to the high side.
 - [ ] Review the CI screenshots after each layout change (`ci-screenshots` branch).
 
+- [ ] **More tilt smoothing for vibration** (roll and pitch jump with vehicle vibration). Today
+  Settings > Tilt smoothing is Low/Medium/High = 0.06/0.15/0.4 s (an exponential average of the
+  phone's own gyro-fused gravity). Plan:
+  - Replace it with a time slider, about 0.1 s up to 5 s (the user asked for up to 5 s), shown in
+    plain words ("averages the last 2 s").
+  - Use a moving average over that window, plus a median step that throws out single bump
+    spikes, so a 2 s setting really means "the last 2 seconds" and settles fully in that time.
+  - Lag trade-off to state in the hint: with 5 s the number shows where you were up to 5 s ago
+    (half a change after 2.5 s), which matters on a sidehill.
+  - So the CAUTION/DANGER colours and alarms keep using a fast reading (about 0.5 s) whatever the
+    display smoothing is: heavy smoothing must never delay a warning.
+  - Optional: follow fast when the angle changes a lot and stays changed (a real slope), smooth
+    heavily when it only jitters around one value (vibration).
+  - Check on the phone in a running vehicle: idle, gravel road, and a slow sidehill.
+
 ## Later
 
 - [ ] TestFlight builds from CI (needs the $99/yr Apple Developer Program and signing secrets).
