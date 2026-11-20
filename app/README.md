@@ -30,11 +30,15 @@ If tilting the nose up shows nose-down, set **Tilt reads backwards?** to Flipped
 ## Dashboard
 
 - Gauges show three at a time. The first page holds the three you choose (Setup guide or
-  Settings); swipe sideways for the rest. Tablets can show all eight at once.
+  Settings); swipe sideways for the rest. Tablets can show all of them at once.
 - Double-tap a gauge to enlarge it; swipe through all gauges; double-tap to go back.
-- Single taps do nothing, so bumps on the trail cannot switch views. Above 8 km/h (5 mph) the view
-  locks (Settings > Lock view while moving), and Quick settings can lock it by hand. Settings
-  themselves are never locked.
+- Single taps do nothing, so bumps on the trail cannot switch views. Double-tap and swipes work
+  while driving; Quick settings > *Lock view* turns them off by hand (the top bar then says VIEW
+  LOCKED). Settings themselves are never locked.
+- *Lock rotation while moving* (Settings, on by default): after a few seconds above 5 mph the
+  screen stays in portrait or landscape, whichever it is in, so a bump can't flip it; it frees up
+  after about 10 seconds below 3 mph (top bar: ROTATION HELD). Only applies when *Screen
+  orientation* is Auto.
 - Top bar: **MUTE** silences all alerts, hold **ZERO** to zero the level, **•••** opens Quick
   settings, All settings, Guides & tips and the Setup guide.
 - The speaker button on a gauge mutes that gauge's alerts.

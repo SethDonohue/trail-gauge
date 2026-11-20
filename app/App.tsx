@@ -6,6 +6,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Brightness from 'expo-brightness';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { MOVE_LOCK_START, stepMoveLock } from './src/core/moveLock';
 import { engine } from './src/engine/engine';
 import { statusStore } from './src/engine/live';
 import { loadSettings, settingsStore, type Orientation } from './src/engine/settings';
@@ -57,6 +58,35 @@ function useNightBrightness() {
   }, [night, pct]);
 }
 
+// The orientation the screen is in now, as a lock that keeps it there.
+const HOLD: Partial<Record<ScreenOrientation.Orientation, ScreenOrientation.OrientationLock>> = {
+  [ScreenOrientation.Orientation.PORTRAIT_UP]: ScreenOrientation.OrientationLock.PORTRAIT_UP,
+  [ScreenOrientation.Orientation.PORTRAIT_DOWN]: ScreenOrientation.OrientationLock.PORTRAIT_DOWN,
+  [ScreenOrientation.Orientation.LANDSCAPE_LEFT]: ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
+  [ScreenOrientation.Orientation.LANDSCAPE_RIGHT]: ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
+};
+
+// Lock rotation while moving: true while the screen orientation should be held (see moveLock.ts).
+// Checks GPS speed once a second; gestures are never affected.
+function useRotationHold(enabled: boolean): boolean {
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    if (!enabled) {
+      setHeld(false);
+      statusStore.set({ rotationHeld: false });
+      return;
+    }
+    let state = MOVE_LOCK_START;
+    const id = setInterval(() => {
+      state = stepMoveLock(state, statusStore.get().speedMps, Date.now());
+      setHeld(state.locked);
+      if (statusStore.get().rotationHeld !== state.locked) statusStore.set({ rotationHeld: state.locked });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [enabled]);
+  return held;
+}
+
 type Screen = 'settings' | 'quick' | 'tips' | 'guide' | null;
 
 export default function App() {
@@ -64,13 +94,26 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(null);
   const orientation = settingsStore.useSelect(s => s.orientation);
   const keepOn = settingsStore.useSelect(s => s.keepScreenOn);
+  const holdWhileMoving = settingsStore.useSelect(s => s.lockRotationWhileMoving);
+  // Only Auto rotates, so only Auto needs holding.
+  const held = useRotationHold(ready && holdWhileMoving && orientation === 'auto');
   useNightBrightness();
 
   // Android ignores this lock in split-screen and on large screens from Android 16, which is
   // what lets the dashboard sit beside a map app; the layout adapts to any window shape.
   useEffect(() => {
-    if (ready) applyOrientation(orientation);
-  }, [ready, orientation]);
+    if (!ready) return;
+    if (!held) {
+      applyOrientation(orientation);
+      return;
+    }
+    ScreenOrientation.getOrientationAsync()
+      .then(o => {
+        const lock = HOLD[o];
+        return lock !== undefined ? ScreenOrientation.lockAsync(lock) : undefined;
+      })
+      .catch(() => {});
+  }, [ready, orientation, held]);
 
   useEffect(() => {
     if (keepOn) activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});

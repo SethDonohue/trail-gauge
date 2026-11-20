@@ -589,3 +589,26 @@ test('settings search: every word must match the name, description or section', 
   assert.ok(!matchesSearch('xyz', speed));
   assert.ok(matchesSearch('coolant', ['Coolant warning', null, 'ALERTS']), 'missing description is fine');
 });
+
+test('lock rotation while moving: locks after 3 s above 5 mph, frees after 10 s below 3 mph', async () => {
+  const { MOVE_LOCK_START, stepMoveLock } = await import('../src/core/moveLock.ts');
+  const kmh = (k: number) => k / 3.6;
+  let s = MOVE_LOCK_START;
+  const run = (speedKmh: number | null, fromMs: number, toMs: number) => {
+    for (let t = fromMs; t <= toMs; t += 1000) s = stepMoveLock(s, speedKmh === null ? null : kmh(speedKmh), t);
+  };
+  run(30, 0, 1000);
+  assert.equal(s.locked, false, 'a 1 s blip does not lock (GPS jitter while parked)');
+  run(2, 2000, 2000);
+  run(30, 3000, 6000);
+  assert.equal(s.locked, true, 'locked after 3 s moving');
+  run(null, 7000, 30000);
+  assert.equal(s.locked, true, 'losing GPS (tunnel, trees) keeps it held');
+  run(6, 31000, 60000);
+  assert.equal(s.locked, true, 'crawling at 6 km/h stays held (between the two speeds)');
+  run(2, 61000, 66000);
+  assert.equal(s.locked, true, 'a short stop stays held');
+  run(30, 67000, 67000);
+  run(2, 68000, 78000);
+  assert.equal(s.locked, false, 'free after 10 s stopped');
+});

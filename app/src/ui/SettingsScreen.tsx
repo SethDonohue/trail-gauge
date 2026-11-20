@@ -12,7 +12,7 @@ import { engine } from '../engine/engine';
 import { requestBluetoothPermission } from '../engine/hubSource';
 import { statusStore } from '../engine/live';
 import {
-  LOCKOUT_KMH, SENSOR_RATES_HZ, settingsStore, TILT_UPDATE_OPTIONS_MS, updateSettings, type Settings,
+  SENSOR_RATES_HZ, settingsStore, TILT_UPDATE_OPTIONS_MS, updateSettings, type Settings,
 } from '../engine/settings';
 import { C } from '../gauges/kit';
 import { GAUGE_LABEL, GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
@@ -199,9 +199,9 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
           <Row label="Keep screen on" hint="While TrailGauge is open. Uses more battery: keep the phone charging.">
             <Toggle label="Keep screen on" value={s.keepScreenOn} onChange={v => updateSettings({ keepScreenOn: v })} />
           </Row>
-          <Row label="Lock view while moving"
-            hint={`Above ${LOCKOUT_KMH} km/h (5 mph), double-tap and swipes do nothing. Stops bumps from switching gauge views while driving. Settings and quick settings always stay available. You can also lock the view by hand from quick settings.`}>
-            <Toggle label="Lock view while moving" value={s.lockViewWhileMoving} onChange={v => updateSettings({ lockViewWhileMoving: v })} />
+          <Row label="Lock rotation while moving" keywords={['orientation', 'portrait', 'landscape', 'rotate']}
+            hint={'After a few seconds above 5 mph, the screen stays in portrait or landscape, whichever it is in, so a bump cannot flip it. It frees up after about 10 seconds below 3 mph. Double-tap and swipes always work. Only applies when Screen orientation is Auto.' + (st.rotationHeld ? ' Held now.' : '')}>
+            <Toggle label="Lock rotation while moving" value={s.lockRotationWhileMoving} onChange={v => updateSettings({ lockRotationWhileMoving: v })} />
           </Row>
           <Row label="Night mode" hint={st.hasLightSensor ? 'Auto uses the light sensor.' : 'Auto uses sunset at your GPS position, or the clock.'}>
             <Segmented label="Night mode" value={s.nightMode} onChange={v => updateSettings({ nightMode: v })}

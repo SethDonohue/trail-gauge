@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { speedUnitFor } from '../core/format';
-import { LOCKOUT_KMH, settingsStore, updateSettings } from '../engine/settings';
+import { settingsStore, updateSettings } from '../engine/settings';
 import { C } from '../gauges/kit';
 import { Btn, Row, Segmented, Stepper, Toggle } from './controls';
 
@@ -25,7 +25,7 @@ export function QuickSettings({ visible, onClose, onOpenSettings, onOpenTips }: 
             <Toggle value={s.muted} onChange={v => updateSettings({ muted: v })} label="Mute all alerts" />
           </Row>
           <Row label="Lock view"
-            hint={`Double-tap and swipes do nothing. The view also locks by itself above ${LOCKOUT_KMH} km/h (5 mph) when that is on in Settings.`}>
+            hint="Double-tap and swipes do nothing until you turn this off. (Moving does not lock them; it only holds the screen rotation, set in Settings.)">
             <Toggle value={s.viewLocked} onChange={v => updateSettings({ viewLocked: v })} label="Lock view" />
           </Row>
           <Row label="Night mode">

@@ -9,7 +9,7 @@ import { bestGrid, chunk } from '../core/layout';
 import { gaugePages, pageAfterSwipe } from '../core/pages';
 import { engine } from '../engine/engine';
 import { statusStore } from '../engine/live';
-import { LOCKOUT_MPS, settingsStore, updateSettings } from '../engine/settings';
+import { settingsStore, updateSettings } from '../engine/settings';
 import { GaugeView } from '../gauges/GaugeView';
 import { C } from '../gauges/kit';
 import { GAUGE_ALERTS, GAUGE_LABEL, GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
@@ -47,12 +47,10 @@ const makeSwipes = (onStep: (d: number) => void) => [
   Gesture.Fling().direction(Directions.RIGHT).runOnJS(true).onEnd((_e, ok) => { if (ok) onStep(-1); }),
 ];
 
-// True when bumps must not switch views: locked by hand, or moving with the lock enabled.
+// True when double-tap and swipes must do nothing: only when locked by hand in quick settings.
+// (Moving never blocks gestures; it only holds the screen orientation, see App.tsx.)
 function useViewLocked(): boolean {
-  const manual = settingsStore.useSelect(s => s.viewLocked);
-  const whileMoving = settingsStore.useSelect(s => s.lockViewWhileMoving);
-  const moving = statusStore.useSelect(s => (s.speedMps ?? 0) > LOCKOUT_MPS);
-  return manual || (whileMoving && moving);
+  return settingsStore.useSelect(s => s.viewLocked);
 }
 
 function SpeakerIcon({ muted, size, color }: { muted: boolean; size: number; color: string }) {
@@ -153,7 +151,11 @@ function SourceBadge({ locked }: { locked: boolean }) {
   const hub = statusStore.useSelect(s => s.hub);
   const altSrc = statusStore.useSelect(s => s.altitudeSource);
   const night = statusStore.useSelect(s => s.night);
+  const rotationHeld = statusStore.useSelect(s => s.rotationHeld);
   const parts: string[] = [];
+  // Locks first: the line is cut off on narrow screens, and these explain why something won't move.
+  if (locked) parts.push('VIEW LOCKED');
+  if (rotationHeld) parts.push('ROTATION HELD');
   if (motion === 'demo' && eng === 'demo') parts.push('DEMO');
   else {
     if (motion === 'phone') parts.push(altSrc === 'gps' ? 'PHONE SENSORS (GPS ALT)' : 'PHONE SENSORS');
@@ -161,7 +163,6 @@ function SourceBadge({ locked }: { locked: boolean }) {
     if (motion === 'hub' || eng === 'hub') parts.push(`HUB: ${hub.toUpperCase()}`);
   }
   if (night) parts.push('NIGHT MODE');
-  if (locked) parts.push('VIEW LOCKED');
   if (muted) parts.push('MUTED');
   return <Text style={styles.badge} numberOfLines={1}>{parts.join(' · ')}</Text>;
 }

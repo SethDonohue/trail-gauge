@@ -24,8 +24,6 @@ export const TILT_SMOOTHING_TAU_S: Record<TiltSmoothing, number> = { low: 0.06, 
 export const TILT_UPDATE_OPTIONS_MS = [100, 250, 500, 1000] as const;
 export const DEFAULT_TILT_UPDATE_MS = 250;
 export const SENSOR_RATES_HZ = [25, 50, 100] as const;
-export const LOCKOUT_KMH = 8;
-export const LOCKOUT_MPS = LOCKOUT_KMH / 3.6;
 
 export interface Settings {
   // Data
@@ -40,7 +38,7 @@ export interface Settings {
   groupShowsAll: boolean; // every gauge on one screen (tablets)
   orientation: Orientation;
   keepScreenOn: boolean;
-  lockViewWhileMoving: boolean; // above 8 km/h, double-tap and swipes do nothing
+  lockRotationWhileMoving: boolean; // moving: the screen keeps its current portrait/landscape
   viewLocked: boolean; // locked by hand from quick settings
   gaugeColor: string;
   tiltStyle: TiltStyle; // the Tilt gauge's look
@@ -95,7 +93,7 @@ export const DEFAULT_SETTINGS: Settings = {
   groupShowsAll: false,
   orientation: 'auto',
   keepScreenOn: true,
-  lockViewWhileMoving: true,
+  lockRotationWhileMoving: true,
   viewLocked: false,
   gaugeColor: DEFAULT_GAUGE_COLOR,
   tiltStyle: DEFAULT_TILT_STYLE,
@@ -190,6 +188,10 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<Setting
     const v = saved[k];
     const check = checks[k] ?? ((x: unknown) => typeof x === typeof d[k]);
     if (check(v)) out[k] = v;
+  }
+  // Before 0.5.7 this was "lock view while moving" (it blocked gestures); keep the user's on/off.
+  if (!('lockRotationWhileMoving' in out) && typeof saved.lockViewWhileMoving === 'boolean') {
+    out.lockRotationWhileMoving = saved.lockViewWhileMoving;
   }
   // Builds before the speedometer had no speed unit: follow the units they already chose.
   if (!('speedUnit' in out)) out.speedUnit = speedUnitFor((out.units as Units | undefined) ?? 'imperial');
