@@ -15,7 +15,8 @@ export const TILT_STYLES: { value: TiltStyle; label: string }[] = [
 ];
 export const TILT_STYLE_HINT =
   'Two dials: roll and pitch side by side, each vehicle tilting against a scale. ' +
-  'One dial: both on a single round gauge. Horizon: the vehicle stays still and the ground tilts. ' +
+  'One dial: both on a single round gauge, roll on the side scales and pitch on a ladder down the middle. ' +
+  'Horizon: the vehicle on a hillside that tilts with it. ' +
   'Bubble: a ball in a curved tube moves to the high side, like a spirit level.';
 
 export const TILT_SCALE_DEG = 40; // scales run to 40 degrees each way
@@ -65,4 +66,12 @@ export function tiltTicks(warnDeg: number): Tick[] {
     out.push({ deg: d, major: d % 10 === 0, red: Math.abs(d) >= warnDeg });
   }
   return out;
+}
+
+// Position on the One dial's pitch ladder, as a fraction of the ladder's half-height: +1 is 40
+// degrees nose up (top of the ladder), -1 is 40 nose down. Stops just past the ends.
+export function ladderFraction(v: number): number {
+  'worklet';
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(-45, Math.min(45, v)) / TILT_SCALE_DEG;
 }

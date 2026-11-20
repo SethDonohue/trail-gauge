@@ -12,7 +12,7 @@ import {
 } from '../src/core/orientation.ts';
 import { chooseHeadingSource, courseToShown, movingForCourse } from '../src/core/heading.ts';
 import { GyroBridge, yawRateDegPerS } from '../src/core/gyroHeading.ts';
-import { bubbleAngleDeg, horizonRotationDeg, axisLevel, tiltTicks, vehicleRotationDeg, DEFAULT_TILT_STYLE, TILT_STYLES } from '../src/core/tilt.ts';
+import { ladderFraction, bubbleAngleDeg, horizonRotationDeg, axisLevel, tiltTicks, vehicleRotationDeg, DEFAULT_TILT_STYLE, TILT_STYLES } from '../src/core/tilt.ts';
 import {
   gpsAltitudeUsable, pressureToAltitudeM, qnhFromElevation, resolveAltitudeSource,
 } from '../src/core/altitude.ts';
@@ -559,4 +559,14 @@ test('gyroscope bridge: turns the last GPS direction while crawling, unaffected 
   assert.equal(chooseHeadingSource({ ...base, pref: 'auto' }), 'compass');
   assert.equal(chooseHeadingSource({ ...base, pref: 'auto', magDisturbed: true }), 'gyro');
   assert.equal(chooseHeadingSource({ ...base, pref: 'gps', haveLastCourse: false }), null);
+});
+
+test('one dial pitch ladder: nose up climbs, nose down drops, stops past the ends', () => {
+  assert.equal(ladderFraction(0), 0);
+  assert.equal(ladderFraction(20), 0.5);
+  assert.equal(ladderFraction(-40), -1);
+  assert.equal(ladderFraction(90), 45 / 40);
+  assert.equal(ladderFraction(NaN), 0);
+  // Horizon look now tilts the ground with the vehicle: same turn as the vehicle drawing.
+  assert.ok(vehicleRotationDeg('roll', 26) > 0, 'right side down: hill falls away to the right');
 });

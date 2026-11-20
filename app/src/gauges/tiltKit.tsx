@@ -65,8 +65,9 @@ export function useTiltState(p: {
 // (That was the 0.5.0/0.5.1 bug: arrows, horizons and bubbles drew once and never moved.)
 export type SpinKind = 'vehicle' | 'horizon' | 'bubble';
 export function useSpin(cx: number, cy: number, source: SharedValue<number>, kind: SpinKind, axis: TiltAxis,
-  extra: { scale?: number } = {}) {
+  extra: { scale?: number; dy?: number } = {}) {
   const scale = extra.scale ?? 0;
+  const dy = extra.dy ?? 0;
   return useDerivedValue(() => {
     const v = source.value;
     const deg = kind === 'horizon' ? horizonRotationDeg(axis, v)
@@ -74,9 +75,10 @@ export function useSpin(cx: number, cy: number, source: SharedValue<number>, kin
     const t: ({ translateX: number } | { translateY: number } | { rotate: number } | { scale: number })[] = [
       { translateX: cx }, { translateY: cy }, { rotate: deg * RAD },
     ];
+    if (dy) t.push({ translateY: dy });
     if (scale) t.push({ scale });
     return t;
-  }, [cx, cy, kind, axis, scale]);
+  }, [cx, cy, kind, axis, scale, dy]);
 }
 
 // Scale ticks every 5 degrees to 40 each way, centred on screen angle `centreDeg`, with tick d at

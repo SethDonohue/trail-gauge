@@ -64,9 +64,11 @@ split-screen beside a mapping app (Gaia GPS, onX Offroad, and so on).
 Settings > Display > *Tilt gauge look*:
 - **Two dials** (default): roll and pitch side by side. Each vehicle tilts against a scale (ticks
   every 5 degrees to 40, red from your warning angle) and a pointer on its roof reads it off.
-- **One dial**: both axes on one round gauge. Roll above the centre, pitch below; the roll line's
-  ends read off the scales at both sides.
-- **Horizon**: the vehicle stays still and the ground tilts, as seen from the driver's seat.
+- **One dial**: both axes on one round gauge. Roll on the side scales: the roll line's ends read
+  them off. Pitch on a ladder down the middle: the side-view vehicle climbs it when the nose is up.
+- **Horizon**: the vehicle on a hillside that tilts with it (right side down, the hill falls away
+  to the right). Aircraft instruments show the opposite (a level horizon seen from inside), but for
+  a vehicle the slope picture reads more naturally and matches the other looks.
 - **Bubble**: a ball in a curved tube moves to the high side, like a spirit level.
 
 Every look shows both numbers, names CAUTION or DANGER in words, and works at any tile size. The

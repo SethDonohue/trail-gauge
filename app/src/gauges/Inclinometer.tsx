@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Circle, Group, Line, Path, Rect, Skia, vec, type SkPath } from '@shopify/react-native-skia';
-import { type SharedValue } from 'react-native-reanimated';
-import { type TiltAxis, type TiltStyle } from '../core/tilt';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { ladderFraction, vehicleRotationDeg, type TiltAxis, type TiltStyle } from '../core/tilt';
 import { live } from '../engine/live';
 import { C, faceFor, fitSize, LiveText } from './kit';
 import { pointerPath, rearPath, sidePath, TickArc, useSpin, useTiltState } from './tiltKit';
@@ -73,8 +73,10 @@ function VehiclePane(p: PaneProps) {
   );
 }
 
-// 3. Horizon: the vehicle stays still and the ground tilts, as seen from the driver's seat. The
-//    ends of the level line read off the scales at each side.
+// 3. Horizon: the vehicle on the hillside. The ground under it tilts with it (right side down:
+//    the hill falls away to the right), like the other looks, and the ends of the ground line read
+//    off the scales at each side. (Aircraft use the opposite, a level horizon seen from inside;
+//    for a vehicle on a slope this way round reads as the slope itself.)
 function HorizonPane(p: PaneProps) {
   const f = paneFrame(p);
   const st = useTiltState(p);
@@ -83,7 +85,7 @@ function HorizonPane(p: PaneProps) {
   const cy = f.top + f.H / 2;
   const ri = rr * 0.84; // window radius; ticks sit between the window and rr
   const clip = useMemo(() => Skia.PathBuilder.Make().addCircle(f.cx, cy, ri).build(), [f.cx, cy, ri]);
-  const spin = useSpin(f.cx, cy, v, 'horizon', axis);
+  const spin = useSpin(f.cx, cy, v, 'vehicle', axis);
   const markers = useMemo(() => {
     const m = Skia.PathBuilder.Make();
     const len = rr * 0.12;
@@ -95,6 +97,7 @@ function HorizonPane(p: PaneProps) {
     return m.build();
   }, [rr, ri]);
   const sv = rr * 0.3; // vehicle size
+  const vehicleSpin = useSpin(f.cx, cy, v, 'vehicle', axis, { dy: -sv * 0.45, scale: sv }); // wheels on the line
   return (
     <Group>
       <PaneText f={f} st={st} />
@@ -111,7 +114,7 @@ function HorizonPane(p: PaneProps) {
       <Group transform={spin}>
         <Path path={markers} color={st.color} />
       </Group>
-      <Group transform={[{ translateX: f.cx }, { translateY: cy - sv * 0.45 }, { scale: sv }]}>
+      <Group transform={vehicleSpin}>
         <Path path={p.path} color={C.ink} />
       </Group>
     </Group>
@@ -162,13 +165,35 @@ function OneDial(props: {
   const r = Math.min(w, h) * 0.46;
   const roll = useTiltState({ value: live.roll, shown: live.rollShown, warnDeg: rollWarnDeg, fresh, accent, label: 'ROLL' });
   const pitch = useTiltState({ value: live.pitch, shown: live.pitchShown, warnDeg: pitchWarnDeg, fresh, accent, label: 'PITCH' });
-  const big = faceFor(fitSize('-88.8°', r * 0.7, r * (compact ? 0.2 : 0.17)));
-  const labelFace = faceFor(fitSize('PITCH · DANGER', r * 1.0, r * 0.075, false));
-  const tickFace = faceFor(fitSize('40', r * 0.12, r * 0.075, false));
-  const sv = r * 0.13;
+  const big = faceFor(fitSize('-88.8°', r * 0.6, r * (compact ? 0.17 : 0.14)));
+  const labelFace = faceFor(fitSize('PITCH · DANGER', r * 0.8, r * 0.065, false));
+  const tickFace = faceFor(fitSize('40', r * 0.11, r * 0.07, false));
   const rollSpin = useSpin(cx, cy, live.roll, 'vehicle', 'roll');
-  const rearSpin = useSpin(cx, cy - r * 0.56, live.roll, 'vehicle', 'roll', { scale: sv });
-  const sideSpin = useSpin(cx, cy + r * 0.56, live.pitch, 'vehicle', 'pitch', { scale: sv });
+  const rearSpin = useSpin(cx, cy - r * 0.74, live.roll, 'vehicle', 'roll', { scale: r * 0.08 });
+  // Pitch ladder down the middle: 40 up (nose up) to 40 down; the side-view vehicle slides along
+  // it and tilts with the nose.
+  const L = r * 0.34; // ladder half-height, at 40 degrees
+  const ladder = useMemo(() => {
+    const normal = Skia.PathBuilder.Make();
+    const red = Skia.PathBuilder.Make();
+    for (let d = -40; d <= 40; d += 5) {
+      const y = cy - (d / 40) * L;
+      const half = d === 0 ? r * 0.1 : d % 10 === 0 ? r * 0.065 : r * 0.035;
+      const q = Math.abs(d) >= pitchWarnDeg ? red : normal;
+      q.moveTo(cx - half, y);
+      q.lineTo(cx + half, y);
+    }
+    return { normal: normal.build(), red: red.build() };
+  }, [cx, cy, L, r, pitchWarnDeg]);
+  const pv = live.pitch;
+  const svp = r * 0.07;
+  const pitchMarker = useDerivedValue(() => {
+    const v = pv.value;
+    return [
+      { translateX: cx }, { translateY: cy - ladderFraction(v) * L },
+      { rotate: (vehicleRotationDeg('pitch', v) * Math.PI) / 180 }, { translateY: svp * 0.15 }, { scale: svp },
+    ];
+  }, [cx, cy, L, svp]);
   const wings = useMemo(() => {
     const q = Skia.PathBuilder.Make();
     q.moveTo(-r * 0.78, 0); q.lineTo(-r * 0.5, 0);
@@ -184,6 +209,7 @@ function OneDial(props: {
     m.addPath(left.build());
     return m.build();
   }, [r]);
+  const sw = Math.max(1.5, r * 0.012);
   return (
     <Group>
       <Circle cx={cx} cy={cy} r={r} color={C.edge} style="stroke" strokeWidth={1.5} />
@@ -191,20 +217,26 @@ function OneDial(props: {
         labels={{ r: r * 0.74, face: tickFace }} />
       <TickArc cx={cx} cy={cy} r0={r * 0.86} r1={r * 0.98} centreDeg={0} warnDeg={rollWarnDeg}
         labels={{ r: r * 0.74, face: tickFace }} />
+      <Path path={ladder.normal} color={C.quiet} style="stroke" strokeWidth={sw} strokeCap="round" />
+      <Path path={ladder.red} color={C.alarm} style="stroke" strokeWidth={sw * 1.3} strokeCap="round" />
+      {[-40, -20, 20, 40].map(d => (
+        <LiveText key={d} text={`${Math.abs(d)}`} face={tickFace} x={cx + r * 0.16} y={cy - (d / 40) * L}
+          color={Math.abs(d) >= pitchWarnDeg ? C.alarm : C.quiet} />
+      ))}
       <Group transform={rollSpin}>
         <Path path={wings} color={roll.color} style="stroke" strokeWidth={Math.max(2, r * 0.02)} strokeCap="round" />
         <Path path={markers} color={roll.color} />
       </Group>
+      <Group transform={pitchMarker}>
+        <Path path={side} color={pitch.color} />
+      </Group>
       <Group transform={rearSpin}>
         <Path path={rear} color={roll.color} />
       </Group>
-      <LiveText text={roll.labelText} face={labelFace} x={cx} y={cy - r * 0.37} color={roll.labelColor} />
-      <LiveText text={roll.text} face={big} x={cx} y={cy - r * 0.2} color={roll.textColor} hangDegree />
-      <LiveText text={pitch.text} face={big} x={cx} y={cy + r * 0.2} color={pitch.textColor} hangDegree />
-      <LiveText text={pitch.labelText} face={labelFace} x={cx} y={cy + r * 0.37} color={pitch.labelColor} />
-      <Group transform={sideSpin}>
-        <Path path={side} color={pitch.color} />
-      </Group>
+      <LiveText text={roll.labelText} face={labelFace} x={cx} y={cy - r * 0.61} color={roll.labelColor} />
+      <LiveText text={roll.text} face={big} x={cx} y={cy - r * 0.47} color={roll.textColor} hangDegree />
+      <LiveText text={pitch.text} face={big} x={cx} y={cy + r * 0.5} color={pitch.textColor} hangDegree />
+      <LiveText text={pitch.labelText} face={labelFace} x={cx} y={cy + r * 0.64} color={pitch.labelColor} />
     </Group>
   );
 }
