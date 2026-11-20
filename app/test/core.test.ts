@@ -570,3 +570,22 @@ test('one dial pitch ladder: nose up climbs, nose down drops, stops past the end
   // Horizon look now tilts the ground with the vehicle: same turn as the vehicle drawing.
   assert.ok(vehicleRotationDeg('roll', 26) > 0, 'right side down: hill falls away to the right');
 });
+
+test('settings search: every word must match the name, description or section', async () => {
+  const { matchesSearch } = await import('../src/core/search.ts');
+  const speed = ['Speed unit', 'Also switches with one tap on the Speed gauge.', 'DISPLAY'];
+  const dim = ['Night dimming', 'How much darker at night.', 'DISPLAY'];
+  const cal = ['Compass calibration', 'Figure-eight', 'COMPASS'];
+  assert.ok(matchesSearch('', speed), 'empty query shows everything');
+  assert.ok(matchesSearch('speed', speed));
+  assert.ok(matchesSearch('SPEED  Unit ', speed), 'case and spacing do not matter');
+  assert.ok(matchesSearch('mph', speed), 'mph finds the speed unit');
+  assert.ok(matchesSearch('brightness', dim), 'brightness finds night dimming');
+  assert.ok(matchesSearch('display', dim), 'section name matches');
+  assert.ok(matchesSearch('compass cal', cal), 'partial words');
+  assert.ok(matchesSearch('magnet', cal), 'magnet finds compass settings');
+  assert.ok(matchesSearch('calibrations', cal), 'plural');
+  assert.ok(!matchesSearch('compass speed', cal), 'every word must match');
+  assert.ok(!matchesSearch('xyz', speed));
+  assert.ok(matchesSearch('coolant', ['Coolant warning', null, 'ALERTS']), 'missing description is fine');
+});

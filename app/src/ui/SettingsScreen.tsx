@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALERT_IDS, ALERT_LABEL, COOLANT_ALARM_MARGIN_C } from '../core/alerts';
@@ -16,7 +16,20 @@ import {
 } from '../engine/settings';
 import { C } from '../gauges/kit';
 import { GAUGE_LABEL, GAUGE_REGISTRY, type GaugeId } from '../gauges/registry';
-import { Btn, Row, Section, Segmented, Stepper, styles as ui, Toggle, TOUCH_TARGET_DP } from './controls';
+import {
+  Btn, Row, Section, Segmented, SettingsSearchContext, Stepper, styles as ui, Toggle, TOUCH_TARGET_DP,
+  type SettingsSearch,
+} from './controls';
+
+// Last thing in the list: after every row has rendered, says so when nothing matched.
+function NoMatches({ search }: { search: SettingsSearch }) {
+  if (!search.query.trim() || search.matches.count > 0) return null;
+  return (
+    <Text style={[ui.hint, { marginTop: 24, textAlign: 'center' }]} accessibilityLiveRegion="polite">
+      No settings match “{search.query.trim()}”. Try another word, like compass, alert or units.
+    </Text>
+  );
+}
 
 const HPA_PER_INHG = 33.8639;
 const gaugeOptions = GAUGE_REGISTRY.map(g => ({ value: g, label: GAUGE_LABEL[g] }));
@@ -49,6 +62,14 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
   const [elevation, setElevation] = useState('');
   const [qnhText, setQnhText] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
+  // Reset each render; the rows below fill these in as they render.
+  const searchRef = useRef<SettingsSearch>({ query: '', section: { current: '' }, matches: { count: 0 } });
+  const search = searchRef.current;
+  search.query = query;
+  search.section.current = '';
+  search.matches.count = 0;
 
   const imperial = s.units === 'imperial';
   const toMeters = (v: number) => (imperial ? v / 3.28084 : v);
@@ -79,7 +100,15 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
           {note ? <Text style={styles.note} numberOfLines={2} accessibilityLiveRegion="polite">{note}</Text> : <View style={{ flex: 1 }} />}
           <Btn label="Done" onPress={onClose} />
         </View>
-        <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={styles.searchRow}>
+          <TextInput style={styles.search} value={query} onChangeText={setQuery} placeholder="Search settings"
+            placeholderTextColor={C.quiet} accessibilityLabel="Search settings" autoCorrect={false}
+            autoCapitalize="none" returnKeyType="search" clearButtonMode="while-editing" />
+          {searching ? <Btn label="Clear" quiet onPress={() => setQuery('')} /> : null}
+        </View>
+        <SettingsSearchContext.Provider value={search}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
           <Section title="DATA SOURCES" />
           <Row label="Tilt, compass, altitude" hint="Phone sensors need a rigid, non-magnetic mount">
             <Segmented label="Tilt, compass, altitude source" value={s.motionSource} onChange={v => updateSettings({ motionSource: v })}
@@ -267,7 +296,8 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
             <Toggle label="Show advanced settings" value={s.showAdvanced} onChange={v => updateSettings({ showAdvanced: v })} />
           </Row>
 
-          {s.showAdvanced ? (
+          {/* Searching looks through the advanced settings too. */}
+          {s.showAdvanced || searching ? (
             <>
               <Section title="COMPASS" />
               <Row label="Compass calibration"
@@ -383,10 +413,12 @@ export function SettingsScreen({ visible, onClose, onOpenGuide, onOpenTips }: {
                   onChange={v => updateSettings({ gravitySign: v === 'normal' ? 1 : -1, mount: null })}
                   options={[{ value: 'normal', label: 'Normal' }, { value: 'flipped', label: 'Flipped' }]} />
               </Row>
-              {st.message ? <Text style={ui.hint}>{st.message}</Text> : null}
+              {st.message && !searching ? <Text style={ui.hint}>{st.message}</Text> : null}
             </>
           ) : null}
+          <NoMatches search={search} />
         </ScrollView>
+        </SettingsSearchContext.Provider>
       </View>
     </Modal>
   );
@@ -397,6 +429,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingBottom: 8, paddingTop: 8 },
   title: { color: C.ink, fontSize: 22, fontWeight: '700' },
   note: { flex: 1, color: C.accent, fontSize: 14 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 6 },
+  search: {
+    flex: 1, minHeight: TOUCH_TARGET_DP, color: C.ink, fontSize: 16, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: C.control, borderRadius: 10, backgroundColor: C.panel,
+  },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch: { width: TOUCH_TARGET_DP, height: TOUCH_TARGET_DP, borderRadius: TOUCH_TARGET_DP / 2, borderWidth: 2, borderColor: C.bg },
   swatchOn: { borderColor: C.ink, borderWidth: 3 },

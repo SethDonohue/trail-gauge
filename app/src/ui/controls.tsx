@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { matchesSearch } from '../core/search';
 import { C } from '../gauges/kit';
+
+// Settings search. The screen provides the query; each Section records its title as the rows after
+// it render (siblings render in order), so a row can match on, and show, its section's name.
+// Rows that do not match render nothing; the screen counts the ones that do.
+export interface SettingsSearch {
+  query: string;
+  section: { current: string };
+  matches: { count: number };
+}
+export const SettingsSearchContext = createContext<SettingsSearch | null>(null);
 
 export const TOUCH_TARGET_DP = 44;
 
@@ -61,12 +72,19 @@ export function Stepper({ value, unit, step, min, max, onChange, format, label }
   );
 }
 
-export function Row({ label, hint, children, warn }: {
+export function Row({ label, hint, children, warn, keywords }: {
   label: string; hint?: string | null; children?: React.ReactNode; warn?: boolean;
+  keywords?: string[]; // extra words search should find this row by
 }) {
+  const search = useContext(SettingsSearchContext);
+  const searching = !!search?.query.trim();
+  const section = search?.section.current ?? '';
+  if (searching && !matchesSearch(search!.query, [label, hint, section, ...(keywords ?? [])])) return null;
+  if (searching) search!.matches.count += 1;
   return (
     <View style={styles.row}>
       <View style={styles.rowLabel}>
+        {searching && section ? <Text style={styles.crumb}>{section}</Text> : null}
         <Text style={styles.label}>{label}</Text>
         {hint ? <Text style={[styles.hint, warn && { color: C.warn }]}>{hint}</Text> : null}
       </View>
@@ -75,9 +93,12 @@ export function Row({ label, hint, children, warn }: {
   );
 }
 
-export const Section = ({ title }: { title: string }) => (
-  <Text style={styles.section} accessibilityRole="header">{title}</Text>
-);
+export function Section({ title }: { title: string }) {
+  const search = useContext(SettingsSearchContext);
+  if (search) search.section.current = title;
+  if (search?.query.trim()) return null; // results carry their section name instead
+  return <Text style={styles.section} accessibilityRole="header">{title}</Text>;
+}
 
 export const Para = ({ children }: { children: React.ReactNode }) => <Text style={styles.para}>{children}</Text>;
 
@@ -91,6 +112,7 @@ export const styles = StyleSheet.create({
   rowLabel: { flexGrow: 1, flexShrink: 1, flexBasis: 220 },
   rowControl: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, flexShrink: 1, maxWidth: '100%' },
   label: { color: C.ink, fontSize: 16 },
+  crumb: { color: C.quiet, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 2 },
   hint: { color: C.quiet, fontSize: 13, marginTop: 2, lineHeight: 18 },
   value: { color: C.ink, fontSize: 15, fontVariant: ['tabular-nums'] },
   para: { color: C.ink, fontSize: 16, lineHeight: 23, marginBottom: 12 },

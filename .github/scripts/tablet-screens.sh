@@ -171,6 +171,13 @@ in_front
 open_menu; tap '^Quick settings$'; tap '^On$'; back
 shot 18-phone-night-mode 3
 open_menu; tap '^All settings$'; shot 19-phone-settings 2
+log "settings search"
+if tap '^Search settings$'; then
+  adb shell input text compass; sleep 1; adb shell input keyevent KEYCODE_BACK
+  shot 19b-phone-settings-search-compass 2
+  tap '^Clear$'; tap '^Search settings$' && adb shell input text zzzq && sleep 1 && adb shell input keyevent KEYCODE_BACK
+  shot 19c-phone-settings-search-none 2
+fi
 back
 
 adb shell wm size reset

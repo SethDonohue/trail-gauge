@@ -59,6 +59,13 @@ split-screen beside a mapping app (Gaia GPS, onX Offroad, and so on).
 - Layouts are checked on an emulated tablet in CI (workflow *Tablet screenshots*); the images are
   on the `ci-screenshots` branch.
 
+## Searching settings
+
+Settings has a search box at the top. Type any words: rows whose name, description or section
+contain all of them stay, each labelled with its section, and the advanced settings are searched
+too. Everyday words work as well (mph finds the speed unit, brightness finds night dimming, magnet
+finds the compass settings). *Clear* shows everything again.
+
 ## Tilt gauge looks
 
 Settings > Display > *Tilt gauge look*:
