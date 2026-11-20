@@ -169,7 +169,7 @@ function OneDial(props: {
   const labelFace = faceFor(fitSize('PITCH · DANGER', r * 0.8, r * 0.065, false));
   const tickFace = faceFor(fitSize('40', r * 0.11, r * 0.07, false));
   const rollSpin = useSpin(cx, cy, live.roll, 'vehicle', 'roll');
-  const rearSpin = useSpin(cx, cy - r * 0.74, live.roll, 'vehicle', 'roll', { scale: r * 0.08 });
+  const rearSpin = useSpin(cx, cy - r * 0.77, live.roll, 'vehicle', 'roll', { scale: r * 0.08 });
   // Pitch ladder down the middle: 40 up (nose up) to 40 down; the side-view vehicle slides along
   // it and tilts with the nose.
   const L = r * 0.34; // ladder half-height, at 40 degrees
@@ -186,7 +186,7 @@ function OneDial(props: {
     return { normal: normal.build(), red: red.build() };
   }, [cx, cy, L, r, pitchWarnDeg]);
   const pv = live.pitch;
-  const svp = r * 0.07;
+  const svp = r * 0.1;
   const pitchMarker = useDerivedValue(() => {
     const v = pv.value;
     return [
@@ -233,10 +233,10 @@ function OneDial(props: {
       <Group transform={rearSpin}>
         <Path path={rear} color={roll.color} />
       </Group>
-      <LiveText text={roll.labelText} face={labelFace} x={cx} y={cy - r * 0.61} color={roll.labelColor} />
-      <LiveText text={roll.text} face={big} x={cx} y={cy - r * 0.47} color={roll.textColor} hangDegree />
-      <LiveText text={pitch.text} face={big} x={cx} y={cy + r * 0.5} color={pitch.textColor} hangDegree />
-      <LiveText text={pitch.labelText} face={labelFace} x={cx} y={cy + r * 0.64} color={pitch.labelColor} />
+      <LiveText text={roll.labelText} face={labelFace} x={cx} y={cy - r * 0.65} color={roll.labelColor} />
+      <LiveText text={roll.text} face={big} x={cx} y={cy - r * 0.51} color={roll.textColor} hangDegree />
+      <LiveText text={pitch.text} face={big} x={cx} y={cy + r * 0.53} color={pitch.textColor} hangDegree />
+      <LiveText text={pitch.labelText} face={labelFace} x={cx} y={cy + r * 0.67} color={pitch.labelColor} />
     </Group>
   );
 }
