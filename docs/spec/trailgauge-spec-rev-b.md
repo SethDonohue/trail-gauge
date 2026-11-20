@@ -1,6 +1,6 @@
 # TrailGauge Technical Specification — Rev B
 
-Oct 20, 2026 · @Seth
+Oct 20, 2026 · @Seth · Rev B.1 Nov 20, 2026: outside and cabin temperature wired to the hub, frame V3 (see revision history)
 
 ## Review summary
 
@@ -77,6 +77,7 @@ Remote nodes report slow channels over CAN (or LoRa), the hub fuses and filters 
 - **One source of truth per quantity.** Attitude and heading come only from the hub's rigidly mounted IMU and magnetometer. Rev A allowed either the hub or the phone, which would give two answers depending on how the phone sat in its mount.
 - **The phone is a display plus GNSS.** It supplies position, speed, QNH and magnetic declination; it never computes attitude.
 - **Nodes are plug-and-play.** A new node announces itself on CAN and its channels appear in the app without a hub firmware change (§5, §7).
+- **Cabin and outside air wire straight to the hub.** The cabin sensor sits on the hub's I2C bus and the outside probes on its own 1-Wire bus (§4), so a basic install needs no CAN node at all. CAN nodes are for engine-bay and other far or harsh-environment sensors.
 
 ## 3. Power subsystem
 
@@ -116,11 +117,11 @@ Rev B adds the IMU and magnetometer that Rev A's gauges depended on but never sp
 | Pitch, roll | Not specified | 6-axis IMU with on-chip anti-alias filter (TDK ICM-42688-P class) | Hub, rigid-mounted on isolators | 200 Hz internal, 25 Hz to phone | Gyro + accel fusion is required; tilt from the accelerometer alone reads wrong whenever the vehicle accelerates or turns |
 | Heading | Not specified | 3-axis magnetometer (MEMSIC MMC5983MA class) | Hub first; a separate CAN "mag puck" if R-08 is missed | 50 Hz internal, 25 Hz to phone | Phone compasses are unusable in magnetic mounts and in a steel cab |
 | Altitude | BME280 | BMP390 class barometer | Hub, vented enclosure with membrane | 25 Hz | Lower pressure noise than BME280; humidity channel was unused |
-| Ambient temp | BME280 in the hub | DS18B20 probe on a CAN node | Outside, shaded, away from radiator and exhaust (e.g. behind the bumper) | 1 Hz | A hub sensor reads cabin air plus its own self-heating, not ambient |
+| Ambient (outside) temp | BME280 in the hub | One or two waterproof DS18B20 probes on the hub's 1-Wire bus (B.1; was a CAN node) | Outside, shaded, away from radiator and exhaust (e.g. behind the bumper; a second under a mirror) | 1 Hz | A hub sensor reads cabin air plus its own self-heating, not ambient. A body-route cable to the hub is simpler than a node and well within 1-Wire's reach |
 | Coolant temp | DS18B20 strapped to a hose | 2-wire automotive NTC sender in an inline hose adapter, read ratiometrically on a CAN node | Upper radiator hose | 1 Hz | A strapped probe reads hose surface with lag; DS18B20 is specified to ±0.5 °C only from −10 to +85 °C, below normal coolant temperature |
 | Oil / trans temp (option) | None | K-type thermocouple with a MAX31856 converter, or NTC sender | Pan or line adapter | 1 Hz | Hot oil exceeds the DS18B20's 125 °C ceiling |
 | Battery voltage | None | Hub ADC, switched divider (§3) | Hub | 5 Hz | Cheapest high-value gauge on a winch-equipped rig |
-| Cabin temp | None | Barometer's internal sensor | Hub | 1 Hz | Free; labelled "cabin", never "ambient" |
+| Cabin temp and humidity | None | Sensirion SHT4x (SHT45 preferred; SHT41 acceptable) on the hub I2C bus, address 0x44 (B.1; was the barometer's internal sensor) | Outside the hub enclosure on a short cable (≤ 0.5 m), low, shaded, in moving cabin air | 1 Hz | Humidity drives the app's dew point and window-fog warning. The barometer's die sensor reads the hub's own self-heating. Labelled "cabin", never "ambient" |
 
 **Heading semantics.** Rev A's "true course bearing" conflated three different quantities. Rev B defines them:
 
@@ -137,6 +138,17 @@ The gauge shows true heading by default with a "T" marker; the user can switch t
 **Magnetometer calibration.** Drive two slow full circles with the engine running and normal electrical load (lights, fans on). The hub fits hard- and soft-iron corrections to an ellipsoid and stores them. The hub reports a calibration quality figure (field-magnitude spread); the app prompts recalibration when it degrades, or after accessories such as a winch or light bar are added.
 
 **Altitude reference.** Barometric altitude drifts with weather at roughly 8 m per hPa near sea level. The app derives a reference pressure (QNH) from GNSS altitude averaged over 60 s when the phone reports vertical accuracy better than 5 m, then sends it to the hub. It re-anchors at each stop longer than 2 minutes. Between anchors, the barometer supplies the smooth, responsive relative altitude that GNSS cannot.
+
+**Outside probes: hub 1-Wire bus (B.1).** Up to two DS18B20 probes share one cable to a dedicated hub GPIO.
+
+- *Wiring.* Externally powered 3-wire mode (3.3 V, data, ground), never parasite power. Twisted pair for data and ground (Cat5-style cable works); keep the run away from ignition and alternator wiring. Rated for at least 10 m; a typical van run is 1–5 m.
+- *Hub interface.* 4.7 kΩ pull-up from data to 3.3 V, with a populated-by-choice footprint for a parallel resistor that brings it to about 2.2 kΩ for long or noisy runs. 100 Ω series resistor and an ESD diode on the data line at the connector. A 100 nF capacitor across power and ground at the probe end.
+- *Connector.* Sealed, keyed 3-pin connector at the hub and an IP67 inline connector near the probe (Deutsch DT or equivalent), with a drip loop before any body grommet.
+- *Firmware.* Check every scratchpad CRC; retry once, then count errors. Treat −127 °C (device absent) and a power-on 85 °C reading as invalid, never as data. Three missed periods set the stale bit; persistent CRC errors set the fault bit.
+- *Assignment.* The hub stores each probe's 64-bit ROM ID in NVS as outside 1 or outside 2. Pairing mode assigns a probe found alone on the bus to the first free slot, so the user plugs probes in one at a time.
+- *App behaviour.* The app shows the lower of the two outside readings and warns when they differ by more than 5 °C; the low-speed heat-soak correction (rises at most 0.5 °C/min below 30 km/h) is applied in the app.
+
+**Temperature calibration.** Each temperature channel carries a user offset stored in the app per probe. The install guide's check is a stirred crushed-ice bath (0 °C) for the DS18B20 probes and a side-by-side reading with a reference thermometer for the cabin sensor.
 
 **Sourcing.** Counterfeit DS18B20s are widespread and fail at temperature extremes. Buy sensors through authorised distribution only.
 
@@ -219,6 +231,7 @@ Rev A's α = 0.12 at 50 Hz corresponds to τ ≈ 0.16 s; the number had no state
 | Battery voltage | 1 | Shows winch sag, hides PWM ripple |
 | Coolant temp | 2 | Sensor lag already dominates |
 | Ambient temp | 10 | Slow by nature; hides passing exhaust plumes |
+| Cabin temp and humidity | 10 | Hides door-open and vent gusts |
 
 **Attitude and heading are not EMA problems.** Pitch and roll come from a Mahony complementary filter (or a 6-state EKF) at 200 Hz: the gyro is integrated, and the accelerometer corrects drift with a gain that drops to near zero when the measured acceleration differs from 1 g by more than 0.1 g, i.e. while braking, accelerating or cornering. Heading is tilt-compensated using the fused attitude, then filtered on the unit circle. An EMA on raw degrees fails at the wrap: averaging 359° and 1° gives 180°, pointing the compass backwards.
 
@@ -351,24 +364,24 @@ void telemetry_task(void *) {
 - Brownout detector enabled at its highest threshold; NVS writes are deferred while battery voltage is below 10.5 V or during cranking.
 - I2C bus recovery: on a stuck bus, clock out 9 pulses and re-initialise before declaring the sensor faulted.
 - OTA: two app partitions, signed images, `esp_ota_mark_app_valid_cancel_rollback()` called only after the new image has streamed telemetry for 60 s.
-- DS18B20 on nodes: use the RMT-based 1-Wire driver so interrupts cannot corrupt bit timing, and start a conversion, then yield for 750 ms rather than blocking.
+- DS18B20 on the hub and on nodes: use the RMT-based 1-Wire driver so interrupts cannot corrupt bit timing, and start a conversion, then yield for 750 ms rather than blocking.
 
 ## 7. BLE interface and telemetry frame
 
-The Rev B fast frame is 20 bytes, little-endian, fits the default ATT MTU, fixes the heading overflow, and adds a version byte, sequence counter, battery voltage and a defined status word. Slow and node-supplied channels move to a separate, extensible characteristic, and the link requires an encrypted, bonded connection.
+The Rev B fast frame is 20 bytes, little-endian, fits the default ATT MTU, fixes the heading overflow, and adds a version byte, sequence counter, battery voltage and a defined status word. Rev B.1 adds frame V3 (28 bytes), which appends the hub's cabin sensor and a second outside probe; the hub sends V3 and the app accepts both. Slow and node-supplied channels move to a separate, extensible characteristic, and the link requires an encrypted, bonded connection.
 
 **GATT layout** (one custom 128-bit base UUID, generated once and frozen; characteristics differ in bytes 12–13)
 
 | Characteristic | Properties | Rate | Content |
 | --- | --- | --- | --- |
-| Telemetry | Notify | 25 Hz | `TelemetryFrameV2`, 20 bytes (below) |
-| Aux channels | Notify | 1 Hz | List of node channels: channel ID (uint8), value (int32), decimal exponent (int8), status (uint8); 7 bytes each. Covers oil temp, cabin temp, and any future node without a frame change |
+| Telemetry | Notify | 25 Hz | `TelemetryFrameV3`, 28 bytes (below); V2, 20 bytes, from Rev B hubs |
+| Aux channels | Notify | 1 Hz | List of node channels: channel ID (uint8), value (int32), decimal exponent (int8), status (uint8); 7 bytes each. Covers oil temp and any future node without a frame change |
 | Control | Write with response | On demand | Opcode + TLV: zero level, start/stop magnetometer calibration, set QNH, set filter τ, enter pairing, reboot |
 | Device info | Read | On connect | Firmware version, frame version, mounting rotation, calibration quality, channel map |
 | Events | Indicate | On change | Faults and alerts that must not be lost (acknowledged by the phone) |
 | Device Information (0x180A), OTA service | Standard / custom | — | Manufacturer, model, serial; signed firmware transfer |
 
-**Security.** The hub has no display or keypad, so it pairs with LE Secure Connections "Just Works" bonding. Because Just Works has no man-in-the-middle protection, pairing is accepted only for 2 minutes after a physical button press on the hub. After bonding, the hub's filter accept list admits only bonded phones, and every characteristic requires an encrypted link. Rev A had none of this, so any phone in range could read or write.
+**Security.** The hub has no display or keypad, so it pairs with LE Secure Connections "Just Works" bonding. Because Just Works has no man-in-the-middle protection, pairing is accepted only for 2 minutes after a physical button press on the hub. After bonding, the hub's filter accept list admits only bonded phones, and every characteristic requires an encrypted link. Rev A had none of this, so any phone in range could read or write. The hub never broadcasts sensor readings in advertising packets (no BTHome or Environmental Sensing broadcast): third-party apps get data only by bonding like the TrailGauge app (decided in B.1).
 
 **Connection parameters.** The app requests high connection priority (11.25–15 ms interval, latency 0) while the dashboard is in the foreground and balanced priority otherwise. 1M PHY is used for range; the stream needs only 500 B/s.
 
@@ -440,6 +453,49 @@ struct TelemetryFrameV2 {
 
 static_assert(sizeof(TelemetryFrameV2) == 20, "must fit a 23-byte ATT MTU notification");
 static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "wire format is little-endian");
+```
+
+**Frame layout: `TelemetryFrameV3` (28 bytes, little-endian, B.1)**
+
+V3 is V2 with `version` = 3 and eight bytes appended. Bytes 0x01–0x13 keep their V2 meaning. The definition in `app/src/core/frame.ts` is authoritative; hub firmware must match it byte for byte.
+
+| Offset | Type | Field | Units | Invalid value |
+| --- | --- | --- | --- | --- |
+| 0x00 | uint8 | `version` | Always 3 | — |
+| 0x01–0x13 | | As V2 | `ambient_cdegc` (0x0E) is outside probe 1 | As V2 |
+| 0x14 | int16 | `cabin_cdegc` | 0.01 °C | 0x8000 |
+| 0x16 | uint16 | `cabin_rh_cpct` | 0.01 % relative humidity | 0xFFFF |
+| 0x18 | int16 | `ambient2_cdegc` | 0.01 °C, outside probe 2 | 0x8000 |
+| 0x1A | uint16 | `status2` | Bit field (below) | — |
+
+A 28-byte notification needs an ATT MTU of at least 31. The app requests an MTU of 64 after connecting; until the exchange completes, or if a phone refuses it, the hub sends V2.
+
+**Status bits (`status2`, uint16)**
+
+| Bit | Meaning |
+| --- | --- |
+| 0 | Cabin sensor stale |
+| 1 | Cabin sensor fault |
+| 2 | Humidity fault (temperature still valid) |
+| 3 | Outside probe 2 stale |
+| 4 | Outside probe 2 fault |
+| 5 | No vehicle data bus configured: status bit 11 (CAN error) is not a fault |
+| 6–15 | Reserved, sent as 0 |
+
+An unassigned outside probe 2 is sent as 0x8000 with bits 3 and 4 clear, so the app hides it rather than showing a fault.
+
+```cpp
+#pragma pack(push, 1)
+struct TelemetryFrameV3 {
+  TelemetryFrameV2 v2;        // v2.version = 3
+  int16_t  cabin_cdegc;       // INT16_MIN = invalid
+  uint16_t cabin_rh_cpct;     // 0xFFFF = invalid
+  int16_t  ambient2_cdegc;    // INT16_MIN = invalid
+  uint16_t status2;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(TelemetryFrameV3) == 28, "needs ATT MTU >= 31");
 ```
 
 **Latency budget (R-11: ≤ 100 ms p95)**
@@ -679,7 +735,7 @@ Every requirement in §1 maps to a test below, run at EVT (first boards), DVT (p
 | Attitude accuracy | R-07 | Tilt table at 0°, ±10°, ±20°, ±30°, ±45°; drive test against a reference GNSS/INS | ±0.5° static; ±2° dynamic | EVT, DVT |
 | Heading accuracy | R-08 | Straight segments above 20 km/h in 8 directions vs GNSS course; repeat with lights, fans and winch power on | ±3° after calibration | DVT |
 | Altitude | R-09 | 1 h parked log vs nearby weather station; climb to a surveyed benchmark | ≤ 3 m drift; benchmark error ≤ 5 m after QNH anchor | DVT |
-| Temperature | R-10 | Stirred bath with reference thermometer | ±1 °C coolant, ±0.5 °C ambient | EVT |
+| Temperature | R-10 | Stirred bath with reference thermometer; cabin sensor side by side with a reference in still air, hub powered | ±1 °C coolant, ±0.5 °C ambient and cabin | EVT |
 | Latency | R-11 | 240 fps camera filming a tilt step and the screen together | ≤ 100 ms p95 over 50 steps | DVT |
 | Rendering | R-12 | GPU profiler, 30 min on reference and mid-range phones | < 1% dropped frames | DVT |
 | Link | R-13, R-14 | 100 hub power cycles; 8 h soak; connection from an unbonded phone; fuzzing of the control characteristic | Reconnect ≤ 5 s; stale flag ≤ 500 ms; unbonded rejected; no crash | EVT, DVT |
@@ -691,6 +747,12 @@ Every requirement in §1 maps to a test below, run at EVT (first boards), DVT (p
 
 ```text
 02 2A D2 04 0C FE 9F 8C 40 E2 01 00 22 24 BB FE E8 35 20 00
+```
+
+The V3 golden vector is the same frame with version 3, cabin 21.50 °C, cabin humidity 45.00 %, outside probe 2 −4.00 °C and `status2` 0:
+
+```text
+03 2A D2 04 0C FE 9F 8C 40 E2 01 00 22 24 BB FE E8 35 20 00 66 08 94 11 70 FE 00 00
 ```
 
 The vector includes a heading that Rev A's int16 field could not represent (35999) and two negative values, so it catches the overflow and sign-handling bugs directly. Add a vector with every field at its invalid sentinel, and one with an unknown version byte that the app must ignore.
@@ -725,6 +787,7 @@ The largest technical risk is heading accuracy from a magnetometer inside a stee
 
 | Rev | Date | Summary |
 | --- | --- | --- |
+| B.1 | 2026-11-20 | Matched to app 0.4+: outside DS18B20 probes (one or two) wire to a hub 1-Wire bus instead of a CAN node; cabin temperature and humidity from an SHT4x on the hub I2C bus instead of the barometer; 28-byte frame V3 with `status2`; no unauthenticated BLE broadcast; temperature calibration offsets |
 | B | 2026-10-20 | Principal review: protected 60 V power front end; CAN replaces I2C for remote nodes; LoRa demoted to optional with regulatory and security rules; IMU and magnetometer added; filters specified by time constant with attitude fusion; 20-byte v2 frame fixing heading overflow; BLE bonding; corrected firmware and app code; requirements and V&V plan added |
 | A | Undated | Initial concept |
 
