@@ -57,4 +57,5 @@ The spec is `docs/spec/trailgauge-spec-rev-b.md`; open work is in `TODO.md`.
 - The repo is public: never put secrets, keys or personal data in it.
 
 ## Commits
-End commit messages with the attribution lines the session provides.
+- Author every commit as the owner's GitHub identity: `git config user.name "Seth Donohue"` and `git config user.email "31681651+SethDonohue@users.noreply.github.com"` (check with `git config user.email` before the first commit in a session; never commit as "Claude").
+- End commit messages with the attribution lines the session provides.
